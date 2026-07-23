@@ -10,9 +10,6 @@ workflows:
       - name: Get Flutter packages
         script: |
           cd expense_pro && flutter packages pub get
-      - name: Install CocoaPods dependencies
-        script: |
-          cd expense_pro/ios && pod install
       - name: Flutter build (no code sign)
         script: |
           cd expense_pro && flutter build ios --release --no-codesign
