@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ExpensePro</string>
+    <string name="shortcut_new_tx_short">ប្រតិបត្តិការថ្មី</string>
+    <string name="shortcut_new_tx_long">បន្ថែមចំណូល ឬចំណាយថ្មី</string>
+    <string name="shortcut_stats_short">ស្ថិតិហិរញ្ញវត្ថុ</string>
+    <string name="shortcut_stats_long">មើលរបាយការណ៍ និងស្ថិតិ</string>
+    <string name="shortcut_debts_short">បំណុល និងខ្ចី</string>
+    <string name="shortcut_debts_long">តាមដានបំណុល និងលុយខ្ចី</string>
+    <string name="widget_title">ExpensePro Quick Tracker</string>
+    <string name="widget_add_tx">កត់ត្រាថ្មី</string>
+    <string name="widget_balance">សមតុល្យបច្ចុប្បន្ន</string>
+</resources>

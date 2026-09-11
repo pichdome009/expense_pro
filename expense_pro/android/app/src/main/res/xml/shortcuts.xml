@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_transaction"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_tx_short"
+        android:shortcutLongLabel="@string/shortcut_new_tx_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.expense_pro"
+            android:targetClass="com.example.expense_pro.MainActivity">
+            <extra android:name="route" android:value="/new_transaction" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="statistics"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_stats_short"
+        android:shortcutLongLabel="@string/shortcut_stats_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.expense_pro"
+            android:targetClass="com.example.expense_pro.MainActivity">
+            <extra android:name="route" android:value="/statistics" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="debt_tracker"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_debts_short"
+        android:shortcutLongLabel="@string/shortcut_debts_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.expense_pro"
+            android:targetClass="com.example.expense_pro.MainActivity">
+            <extra android:name="route" android:value="/debt_tracker" />
+        </intent>
+    </shortcut>
+</shortcuts>
