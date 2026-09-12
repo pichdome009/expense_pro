@@ -7,6 +7,7 @@ class SavingsManagerModal extends StatefulWidget {
   final List<SavingGoal> goals;
   final String currency;
   final double rate;
+  final String lang;
   final ValueChanged<List<SavingGoal>> onGoalsChanged;
 
   const SavingsManagerModal({
@@ -14,6 +15,7 @@ class SavingsManagerModal extends StatefulWidget {
     required this.goals,
     required this.currency,
     required this.rate,
+    this.lang = 'km',
     required this.onGoalsChanged,
   });
 
@@ -158,14 +160,14 @@ class _SavingsManagerModalState extends State<SavingsManagerModal> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dctx),
-              child: const Text('បោះបង់'),
+              child: Text(widget.lang == 'km' ? 'បោះបង់' : 'Cancel'),
             ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
               onPressed: () {
                 final title = titleCtrl.text.trim();
-                final target = double.tryParse(targetCtrl.text.trim().replaceAll(',', '')) ?? 0.0;
-                final cur = double.tryParse(currentCtrl.text.trim().replaceAll(',', '')) ?? 0.0;
+                final target = parseAmount(targetCtrl.text);
+                final cur = parseAmount(currentCtrl.text);
                 if (title.isNotEmpty && target > 0) {
                   final newGoal = SavingGoal(
                     id: 'goal_${DateTime.now().microsecondsSinceEpoch}',
@@ -180,7 +182,7 @@ class _SavingsManagerModalState extends State<SavingsManagerModal> {
                   Navigator.pop(dctx);
                 }
               },
-              child: const Text('បង្កើត'),
+              child: Text(widget.lang == 'km' ? 'បង្កើត' : 'Create'),
             ),
           ],
         ),
@@ -242,12 +244,12 @@ class _SavingsManagerModalState extends State<SavingsManagerModal> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dctx),
-              child: const Text('បោះបង់'),
+              child: Text(widget.lang == 'km' ? 'បោះបង់' : 'Cancel'),
             ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: isWithdraw ? Colors.red : AppColors.primary),
               onPressed: () {
-                final amt = double.tryParse(amtCtrl.text.trim().replaceAll(',', '')) ?? 0.0;
+                final amt = parseAmount(amtCtrl.text);
                 if (amt > 0) {
                   final newCur = isWithdraw
                       ? (goal.currentAmount - amt).clamp(0.0, double.infinity)
@@ -274,52 +276,82 @@ class _SavingsManagerModalState extends State<SavingsManagerModal> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 22,
-        right: 22,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 30,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(4),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.only(
+          top: 20,
+          left: 22,
+          right: 22,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 30,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
+                  child: Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.savings_rounded, color: AppColors.primary, size: 24),
-                  SizedBox(width: 8),
-                  Text(
-                    'គោលដៅសន្សំប្រាក់ (Savings Goals)',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.savings_rounded, color: AppColors.primary, size: 24),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          widget.lang == 'km' ? 'គោលដៅសន្សំប្រាក់' : 'Savings Goals',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 28),
-                onPressed: _showAddGoalDialog,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 28),
+                      onPressed: _showAddGoalDialog,
+                      tooltip: widget.lang == 'km' ? 'បន្ថែមគោលដៅ' : 'Add Goal',
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded, size: 22),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                        padding: const EdgeInsets.all(6),
+                        minimumSize: const Size(34, 34),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
 
           if (_goals.isEmpty)
             Container(
@@ -449,6 +481,7 @@ class _SavingsManagerModalState extends State<SavingsManagerModal> {
             ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

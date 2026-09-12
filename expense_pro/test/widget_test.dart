@@ -435,4 +435,14 @@ void main() {
     const rawKhr = '10,000';
     expect(double.parse(rawKhr.replaceAll(',', '').replaceAll('.', '')), 10000.0);
   });
+
+  test('parseAmount handles comma, dot, mixed thousands and empty inputs', () {
+    expect(parseAmount('2,50'), 2.50);
+    expect(parseAmount('2.50'), 2.50);
+    expect(parseAmount('1,500.75'), 1500.75);
+    expect(parseAmount('1500'), 1500.0);
+    expect(parseAmount(''), 0.0);
+    expect(parseAmount('   '), 0.0);
+    expect(parseAmount('abc'), 0.0);
+  });
 }

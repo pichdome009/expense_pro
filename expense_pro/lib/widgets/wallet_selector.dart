@@ -72,144 +72,202 @@ class WalletSelectorBar extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
+      isDismissible: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setMState) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: EdgeInsets.only(
-            top: 20,
-            left: 22,
-            right: 22,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'បន្ថែមកាបូបលុយថ្មី (New Wallet)',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'ឈ្មោះកាបូប (ឧ. ABA, Wing, សាច់ប្រាក់)',
-                    filled: true,
-                    fillColor: Colors.grey.withValues(alpha: 0.08),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: balanceCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'សមតុល្យដំបូង (\$) (មិនចាំបាច់)',
-                    filled: true,
-                    fillColor: Colors.grey.withValues(alpha: 0.08),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('ជ្រើសរើស Icon', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: availableIcons.map((ic) {
-                    final isSel = ic == selectedIcon;
-                    return InkWell(
-                      onTap: () => setMState(() => selectedIcon = ic),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isSel ? selectedColor.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: isSel ? Border.all(color: selectedColor, width: 2) : null,
+        builder: (ctx, setMState) => GestureDetector(
+          onTap: () => FocusScope.of(ctx).unfocus(),
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            padding: EdgeInsets.only(
+              top: 20,
+              left: 22,
+              right: 22,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(),
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
+                        child: Container(
+                          width: 48,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
-                        child: Icon(ic, color: isSel ? selectedColor : Colors.grey),
                       ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 14),
-                const Text('ជ្រើសរើស ពណ៌', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: availableColors.map((cl) {
-                    final isSel = cl == selectedColor;
-                    return InkWell(
-                      onTap: () => setMState(() => selectedColor = cl),
-                      customBorder: const CircleBorder(),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: cl,
-                          shape: BoxShape.circle,
-                          border: isSel ? Border.all(color: Colors.white, width: 3) : null,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'បន្ថែមកាបូបលុយថ្មី (New Wallet)',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close_rounded, size: 22),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                          padding: const EdgeInsets.all(6),
+                          minimumSize: const Size(34, 34),
                         ),
-                        child: isSel ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
                       ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 22),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      final name = nameCtrl.text.trim();
-                      if (name.isEmpty) return;
-                      final initBal = double.tryParse(balanceCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
-                      final newWallet = Wallet(
-                        id: DateTime.now().microsecondsSinceEpoch.toString(),
-                        name: name,
-                        icon: selectedIcon,
-                        color: selectedColor,
-                        initialBalance: initBal,
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'ឈ្មោះកាបូប (ឧ. ABA, Wing, សាច់ប្រាក់)',
+                      filled: true,
+                      fillColor: Colors.grey.withValues(alpha: 0.08),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: balanceCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'សមតុល្យដំបូង (\$) (មិនចាំបាច់)',
+                      filled: true,
+                      fillColor: Colors.grey.withValues(alpha: 0.08),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('ជ្រើសរើស Icon', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: availableIcons.map((ic) {
+                      final isSel = ic == selectedIcon;
+                      return InkWell(
+                        onTap: () => setMState(() => selectedIcon = ic),
+                        borderRadius: BorderRadius.circular(12),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isSel ? AppColors.primary : Colors.grey.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(ic, color: isSel ? Colors.white : Colors.grey.shade600, size: 22),
+                        ),
                       );
-                      final updated = List<Wallet>.from(wallets)..add(newWallet);
-                      onWalletsChanged(updated);
-                      Navigator.pop(ctx);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: const Text('បង្កើតកាបូបលុយ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    }).toList(),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  const Text('ជ្រើសរើស ពណ៌', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: availableColors.map((col) {
+                      final isSel = col == selectedColor;
+                      return InkWell(
+                        onTap: () => setMState(() => selectedColor = col),
+                        customBorder: const CircleBorder(),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: col,
+                            shape: BoxShape.circle,
+                            border: isSel ? Border.all(color: Colors.white, width: 3) : null,
+                            boxShadow: isSel ? [BoxShadow(color: col.withValues(alpha: 0.5), blurRadius: 8)] : null,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final name = nameCtrl.text.trim();
+                        if (name.isEmpty) return;
+                        final initBal = parseAmount(balanceCtrl.text);
+                        final newWallet = Wallet(
+                          id: DateTime.now().microsecondsSinceEpoch.toString(),
+                          name: name,
+                          icon: selectedIcon,
+                          color: selectedColor,
+                          initialBalance: initBal,
+                        );
+                        final updated = List<Wallet>.from(wallets)..add(newWallet);
+                        onWalletsChanged(updated);
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('បង្កើតកាបូបលុយ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  void _confirmDeleteWallet(BuildContext context, Wallet w) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('លុបកាបូប "${w.name}"?'),
+        content: const Text('ប្រតិបត្តិការដែលបានកត់ត្រានឹងមិនត្រូវបានលុបទេ។'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('បោះបង់'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('លុប', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      final updated = List<Wallet>.from(wallets)..removeWhere((x) => x.id == w.id);
+      if (selectedWalletId == w.id) {
+        onSelectWallet(null);
+      }
+      onWalletsChanged(updated);
+    }
   }
 
   @override
@@ -235,6 +293,7 @@ class WalletSelectorBar extends StatelessWidget {
           ...wallets.map((w) {
             final isSel = selectedWalletId == w.id;
             final bal = _getWalletBalance(w);
+            final isCustom = !kDefaultWallets.any((d) => d.id == w.id);
             return _walletChip(
               context,
               isSelected: isSel,
@@ -243,6 +302,7 @@ class WalletSelectorBar extends StatelessWidget {
               name: w.name,
               balanceText: formatCurrency(bal, currency, rate),
               onTap: () => onSelectWallet(w.id),
+              onLongPress: isCustom ? () => _confirmDeleteWallet(context, w) : null,
             );
           }),
           // Add Wallet Button
@@ -278,10 +338,12 @@ class WalletSelectorBar extends StatelessWidget {
     required String name,
     required String balanceText,
     required VoidCallback onTap,
+    VoidCallback? onLongPress,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(right: 10, top: 4, bottom: 4),

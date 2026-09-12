@@ -284,6 +284,7 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
         currency: _currency,
         rate: _rate,
         onGoalsChanged: _onGoalsChanged,
+        lang: _lang,
       ),
     );
   }

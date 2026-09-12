@@ -105,38 +105,63 @@ class _CategoryManagerModalState extends State<CategoryManagerModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 22,
-        right: 22,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.only(
+          top: 20,
+          left: 22,
+          right: 22,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
-            const Text(
-              'គ្រប់គ្រងប្រភេទ (Custom Categories)',
-              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'គ្រប់គ្រងប្រភេទផ្ទាល់ខ្លួន',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, size: 22),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                      padding: const EdgeInsets.all(6),
+                      minimumSize: const Size(34, 34),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
             // Type tab
             Container(
@@ -306,8 +331,9 @@ class _CategoryManagerModalState extends State<CategoryManagerModal> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _typeOption(String label, bool isExp, Color color) {
     final selected = _isExpense == isExp;

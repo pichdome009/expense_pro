@@ -65,3 +65,15 @@ bool matchesDateRange(
       return true;
   }
 }
+
+/// Safely parse user input into double, supporting both '.' and ',' as decimals.
+/// Examples: "2,50" -> 2.50, "1,500.50" -> 1500.50, "1500" -> 1500.0, "" -> 0.0
+double parseAmount(String input) {
+  final clean = input.trim();
+  if (clean.isEmpty) return 0.0;
+  if (clean.contains(',') && clean.contains('.')) {
+    return double.tryParse(clean.replaceAll(',', '')) ?? 0.0;
+  }
+  return double.tryParse(clean.replaceAll(',', '.')) ?? 0.0;
+}
+

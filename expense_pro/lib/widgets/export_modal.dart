@@ -213,16 +213,23 @@ class _ExportModalState extends State<ExportModal> {
         children: [
           // Drag Handle
           Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(4),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
+                child: Container(
+                  width: 48,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -231,12 +238,29 @@ class _ExportModalState extends State<ExportModal> {
                 'នាំចេញទិន្នន័យ (Export)',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              if (_isExporting)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_isExporting)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, size: 22),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                      padding: const EdgeInsets.all(6),
+                      minimumSize: const Size(34, 34),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 16),

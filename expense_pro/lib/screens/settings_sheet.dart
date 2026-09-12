@@ -3,6 +3,7 @@ import '../constants/app_colors.dart';
 import '../services/backup_service.dart';
 import '../services/notification_service.dart';
 import '../services/security_service.dart';
+import '../utils/formatters.dart';
 import '../widgets/pin_setup_dialog.dart';
 
 class SettingsSheet extends StatefulWidget {
@@ -117,82 +118,136 @@ class _SettingsSheetState extends State<SettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 22,
-        right: 22,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 30,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.only(
+          top: 20,
+          left: 22,
+          right: 22,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 30,
+        ),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
-            const Text(
-              'ការកំណត់',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _currentLang == 'km' ? 'ការកំណត់' : 'Settings',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, size: 22),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                      padding: const EdgeInsets.all(6),
+                      minimumSize: const Size(34, 34),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
 
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: widget.isDark,
-              onChanged: widget.onToggleTheme,
-              title: Text(_currentLang == 'km' ? 'របៀបងងឹត (Dark Mode)' : 'Dark Mode'),
-              secondary: const Icon(Icons.dark_mode_rounded),
-              activeThumbColor: AppColors.primary,
-            ),
-            const Divider(),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: widget.isDark,
+                onChanged: widget.onToggleTheme,
+                title: Text(_currentLang == 'km' ? 'របៀបងងឹត (Dark Mode)' : 'Dark Mode'),
+                secondary: const Icon(Icons.dark_mode_rounded),
+                activeThumbColor: AppColors.primary,
+              ),
+              const Divider(),
 
-            Text(
-              _currentLang == 'km' ? 'ភាសា (Language)' : 'Language',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(child: _langTab('ភាសាខ្មែរ 🇰🇭', 'km')),
-                const SizedBox(width: 10),
-                Expanded(child: _langTab('English 🇺🇸', 'en')),
+              Text(
+                _currentLang == 'km' ? 'ភាសា (Language)' : 'Language',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: _langTab('ភាសាខ្មែរ 🇰🇭', 'km')),
+                  const SizedBox(width: 10),
+                  Expanded(child: _langTab('English 🇺🇸', 'en')),
+                ],
+              ),
+              const Divider(),
+
+              Text(
+                _currentLang == 'km' ? 'រូបិយប័ណ្ណបង្ហាញ' : 'Display Currency',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: _currencyTab('USD (\$)', 'USD')),
+                  const SizedBox(width: 10),
+                  Expanded(child: _currencyTab('KHR (៛)', 'KHR')),
+                ],
+              ),
+              if (_currentCurrency == 'KHR') ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _rateCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: _currentLang == 'km' ? 'អត្រាប្តូរប្រាក់ (1\$ = ? ៛)' : 'Exchange Rate (1\$ = ? ៛)',
+                    filled: true,
+                    fillColor: Colors.grey.withValues(alpha: 0.08),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (v) {
+                    final r = parseAmount(v);
+                    if (r > 0) widget.onSetRate(r);
+                  },
+                  onSubmitted: (v) {
+                    final r = parseAmount(v);
+                    if (r > 0) widget.onSetRate(r);
+                  },
+                ),
               ],
-            ),
-            const Divider(),
+              const SizedBox(height: 20),
 
-            const Text(
-              'រូបិយប័ណ្ណបង្ហាញ',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(child: _currencyTab('USD (\$)', 'USD')),
-                const SizedBox(width: 10),
-                Expanded(child: _currencyTab('KHR (៛)', 'KHR')),
-              ],
-            ),
-            if (_currentCurrency == 'KHR') ...[
-              const SizedBox(height: 12),
+              Text(
+                _currentLang == 'km' ? 'ថវិកាប្រចាំខែសរុប' : 'Monthly Budget',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              const SizedBox(height: 10),
               TextField(
-                controller: _rateCtrl,
-                keyboardType: TextInputType.number,
+                controller: _budgetCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: 'អត្រាប្តូរប្រាក់ (1\$ = ? ៛)',
+                  labelText: _currentLang == 'km' ? 'ថវិកា (\$)' : 'Budget (\$)',
                   filled: true,
                   fillColor: Colors.grey.withValues(alpha: 0.08),
                   border: OutlineInputBorder(
@@ -201,50 +256,17 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   ),
                 ),
                 onChanged: (v) {
-                  final r = double.tryParse(v.trim());
-                  if (r != null && r > 0) widget.onSetRate(r);
+                  final b = parseAmount(v);
+                  if (b >= 0) {
+                    widget.onSetBudget(b);
+                  }
                 },
                 onSubmitted: (v) {
-                  final r = double.tryParse(v.trim());
-                  if (r != null && r > 0) widget.onSetRate(r);
+                  final b = parseAmount(v);
+                  widget.onSetBudget(b);
                 },
               ),
-            ],
-            const SizedBox(height: 20),
-
-            const Text(
-              'ថវិកាប្រចាំខែសរុប',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _budgetCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'ថវិកា (\$)',
-                filled: true,
-                fillColor: Colors.grey.withValues(alpha: 0.08),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              onChanged: (v) {
-                final sanitized = v.trim().replaceAll(',', '.');
-                final b = double.tryParse(sanitized);
-                if (b != null && b >= 0) {
-                  widget.onSetBudget(b);
-                } else if (v.trim().isEmpty) {
-                  widget.onSetBudget(0.0);
-                }
-              },
-              onSubmitted: (v) {
-                final sanitized = v.trim().replaceAll(',', '.');
-                final b = double.tryParse(sanitized) ?? 0.0;
-                widget.onSetBudget(b);
-              },
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
             const Divider(),
             ListTile(
@@ -674,8 +696,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _currencyTab(String label, String value) {
     final selected = _currentCurrency == value;

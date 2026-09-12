@@ -217,7 +217,7 @@ class _DebtTrackerModalState extends State<DebtTrackerModal> {
               style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
               onPressed: () {
                 final name = nameCtrl.text.trim();
-                final amt = double.tryParse(amountCtrl.text.trim().replaceAll(',', '')) ?? 0.0;
+                final amt = parseAmount(amountCtrl.text);
                 if (name.isNotEmpty && amt > 0) {
                   final newDebt = DebtLoan(
                     id: 'debt_${DateTime.now().microsecondsSinceEpoch}',
@@ -290,7 +290,7 @@ class _DebtTrackerModalState extends State<DebtTrackerModal> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
             onPressed: () {
-              final paid = double.tryParse(amtCtrl.text.trim().replaceAll(',', '')) ?? 0.0;
+              final paid = parseAmount(amtCtrl.text);
               if (paid > 0) {
                 final idx = _debts.indexWhere((d) => d.id == debt.id);
                 if (idx != -1) {
@@ -315,53 +315,83 @@ class _DebtTrackerModalState extends State<DebtTrackerModal> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final filtered = _filteredDebts;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 22,
-        right: 22,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 30,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(4),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.only(
+          top: 20,
+          left: 22,
+          right: 22,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 30,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
+                  child: Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.handshake_rounded, color: AppColors.primary, size: 24),
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.lang == 'km' ? 'តាមដានបំណុល & លុយខ្ចី' : 'Debt & Loan Tracker',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.handshake_rounded, color: AppColors.primary, size: 24),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          widget.lang == 'km' ? 'តាមដានបំណុល & លុយខ្ចី' : 'Debt & Loan Tracker',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 28),
-                onPressed: _showAddDebtDialog,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 28),
+                      onPressed: _showAddDebtDialog,
+                      tooltip: widget.lang == 'km' ? 'បន្ថែមបំណុល' : 'Add Debt',
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded, size: 22),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                        padding: const EdgeInsets.all(6),
+                        minimumSize: const Size(34, 34),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
 
           // Summaries
           Row(
@@ -581,8 +611,9 @@ class _DebtTrackerModalState extends State<DebtTrackerModal> {
             ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _filterChip(String key, String label) {
     final selected = _filter == key;
