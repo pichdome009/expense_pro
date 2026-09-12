@@ -19,8 +19,14 @@ class PdfExportService {
     final pdf = pw.Document();
 
     // Load Kantumruy Pro font from Google Fonts for flawless Khmer text rendering
-    final fontRegular = await PdfGoogleFonts.kantumruyProRegular();
-    final fontBold = await PdfGoogleFonts.kantumruyProBold();
+    pw.Font? fontRegular;
+    pw.Font? fontBold;
+    try {
+      fontRegular = await PdfGoogleFonts.kantumruyProRegular();
+      fontBold = await PdfGoogleFonts.kantumruyProBold();
+    } catch (_) {
+      // Offline fallback: Use default PDF fonts
+    }
 
     // Filter by date range if provided
     final filtered = dateRange == null
@@ -61,10 +67,12 @@ class PdfExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        theme: pw.ThemeData.withFont(
-          base: fontRegular,
-          bold: fontBold,
-        ),
+        theme: (fontRegular != null && fontBold != null)
+            ? pw.ThemeData.withFont(
+                base: fontRegular,
+                bold: fontBold,
+              )
+            : pw.ThemeData(),
         header: (context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -247,7 +255,7 @@ class PdfExportService {
     required String amount,
     required PdfColor color,
     required PdfColor bgColor,
-    required pw.Font fontBold,
+    pw.Font? fontBold,
   }) {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 12),
