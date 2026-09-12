@@ -119,7 +119,11 @@ class _TransactionModalState extends State<TransactionModal> {
 
   void _submit() {
     String title = _titleCtrl.text.trim();
-    final cleanInput = _amountCtrl.text.trim().replaceAll(',', '');
+    // Support both comma and dot as decimal separators (e.g. 2.50 or 2,50)
+    final rawText = _amountCtrl.text.trim();
+    final cleanInput = _inputCurrency == 'KHR'
+        ? rawText.replaceAll(',', '').replaceAll('.', '')
+        : rawText.replaceAll(',', '.');
     final inputVal = double.tryParse(cleanInput);
 
     if (_type == TxType.transfer && title.isEmpty) {
@@ -199,38 +203,63 @@ class _TransactionModalState extends State<TransactionModal> {
   @override
   Widget build(BuildContext context) {
     final accent = _type == TxType.income ? AppColors.income : AppColors.expense;
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 22,
-        right: 22,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.only(
+          top: 20,
+          left: 22,
+          right: 22,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
+                  child: Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            Text(
-              AppStrings.get(_isEditing ? 'edit_tx' : 'new_tx', widget.lang),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  AppStrings.get(_isEditing ? 'edit_tx' : 'new_tx', widget.lang),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded, size: 24),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                    padding: const EdgeInsets.all(6),
+                    minimumSize: const Size(36, 36),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
             // Type toggle
             Container(
@@ -465,7 +494,10 @@ class _TransactionModalState extends State<TransactionModal> {
             if (_amountCtrl.text.trim().isNotEmpty && _amountError == null) ...[
               Builder(
                 builder: (context) {
-                  final clean = _amountCtrl.text.trim().replaceAll(',', '');
+                  final raw = _amountCtrl.text.trim();
+                  final clean = _inputCurrency == 'KHR'
+                      ? raw.replaceAll(',', '').replaceAll('.', '')
+                      : raw.replaceAll(',', '.');
                   final v = double.tryParse(clean);
                   if (v == null || v <= 0) return const SizedBox.shrink();
                   final String liveConversion;
@@ -601,15 +633,19 @@ class _TransactionModalState extends State<TransactionModal> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _currencyButton(String code, String symbol) {
     final isSel = _inputCurrency == code;
     return GestureDetector(
       onTap: () {
         if (_inputCurrency != code) {
-          final clean = _amountCtrl.text.trim().replaceAll(',', '');
+          final raw = _amountCtrl.text.trim();
+          final clean = _inputCurrency == 'KHR'
+              ? raw.replaceAll(',', '').replaceAll('.', '')
+              : raw.replaceAll(',', '.');
           final val = double.tryParse(clean);
           setState(() {
             _inputCurrency = code;

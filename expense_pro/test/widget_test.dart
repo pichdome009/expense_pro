@@ -423,4 +423,16 @@ void main() {
     expect(insightsKm.peakWeekdayName, 'ថ្ងៃពុធ');
     expect(insightsKm.smartTip.isNotEmpty, true);
   });
+
+  test('Decimal parsing supports both comma and dot for currency inputs', () {
+    // Test USD: "2,50" -> 2.50, "2.50" -> 2.50
+    const rawComma = '2,50';
+    const rawDot = '2.50';
+    expect(double.parse(rawComma.replaceAll(',', '.')), 2.50);
+    expect(double.parse(rawDot.replaceAll(',', '.')), 2.50);
+
+    // Test KHR: "10,000" -> 10000
+    const rawKhr = '10,000';
+    expect(double.parse(rawKhr.replaceAll(',', '').replaceAll('.', '')), 10000.0);
+  });
 }

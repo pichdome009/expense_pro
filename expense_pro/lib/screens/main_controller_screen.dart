@@ -230,6 +230,9 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
+      isDismissible: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => CategoryManagerModal(
         customCategories: _customCategories,
@@ -245,6 +248,9 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
+      isDismissible: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => CategoryBudgetModal(
         categoryBudgets: _categoryBudgets,
@@ -269,6 +275,9 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
+      isDismissible: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SavingsManagerModal(
         goals: _savingsGoals,
@@ -288,6 +297,9 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
+      isDismissible: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => DebtTrackerModal(
         debts: _debts,
@@ -323,6 +335,9 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
+      isDismissible: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => TransactionModal(
         onAdd: _addTx,
@@ -341,6 +356,9 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
+      isDismissible: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => ExportModal(
         transactions: _tx,
@@ -355,6 +373,9 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      enableDrag: true,
+      isDismissible: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SettingsSheet(
         isDark: widget.isDark,
@@ -519,22 +540,33 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
       ),
     ];
 
-    return Scaffold(
-      extendBody: true,
-      body: SafeArea(bottom: false, child: pages[_currentIndex]),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openTxModal(),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: const Icon(Icons.add, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: PillNavBar(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-        lang: _lang,
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        extendBody: true,
+        resizeToAvoidBottomInset: false,
+        body: SafeArea(bottom: false, child: pages[_currentIndex]),
+        floatingActionButton: keyboardVisible
+            ? null
+            : FloatingActionButton(
+                onPressed: () => _openTxModal(),
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 6,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                child: const Icon(Icons.add, size: 28),
+              ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: keyboardVisible
+            ? null
+            : PillNavBar(
+                currentIndex: _currentIndex,
+                onTap: (i) => setState(() => _currentIndex = i),
+                lang: _lang,
+              ),
       ),
     );
   }

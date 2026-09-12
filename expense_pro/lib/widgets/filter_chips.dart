@@ -16,6 +16,7 @@ class SmallChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -23,15 +24,31 @@ class SmallChip extends StatelessWidget {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: selected ? AppColors.navy : Colors.grey.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(18),
+          color: selected
+              ? AppColors.primary
+              : (isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.withValues(alpha: 0.08)),
+          borderRadius: BorderRadius.circular(20),
+          border: selected
+              ? null
+              : Border.all(
+                  color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.04),
+                ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.28),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : Colors.grey.shade600,
+            color: selected ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
           ),
         ),
       ),
@@ -122,17 +139,29 @@ class FilterChipWidget extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: selected ? chipColor : chipColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
+          color: selected ? chipColor : chipColor.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: selected
+              ? null
+              : Border.all(color: chipColor.withValues(alpha: 0.18)),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: chipColor.withValues(alpha: 0.28),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           label,
           style: TextStyle(
             color: selected ? Colors.white : chipColor,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 12,
           ),
         ),
       ),

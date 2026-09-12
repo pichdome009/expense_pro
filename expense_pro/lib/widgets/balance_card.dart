@@ -30,31 +30,70 @@ class BalanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.navy, AppColors.navy2],
+          colors: [
+            Color(0xFF0F172A), // Slate 900
+            Color(0xFF1E293B), // Slate 800
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.navy.withValues(alpha: 0.35),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            lang == 'km' ? 'សមតុល្យខែនេះ' : 'This Month Balance',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 14,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                lang == 'km' ? 'សមតុល្យខែនេះ' : 'This Month Balance',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.65),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (balance >= 0 ? AppColors.income : AppColors.expense).withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      balance >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                      size: 13,
+                      color: balance >= 0 ? AppColors.income : AppColors.expense,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      balance >= 0 ? '+${currency == 'KHR' ? '៛' : '\$'}' : '-${currency == 'KHR' ? '៛' : '\$'}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: balance >= 0 ? AppColors.income : AppColors.expense,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 6),
           TweenAnimationBuilder<double>(
@@ -65,9 +104,9 @@ class BalanceCard extends StatelessWidget {
               formatCurrency(value, currency, rate),
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 34,
+                fontSize: 32,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
+                letterSpacing: -0.5,
               ),
             ),
           ),

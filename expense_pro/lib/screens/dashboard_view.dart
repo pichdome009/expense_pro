@@ -134,86 +134,71 @@ class DashboardView extends StatelessWidget {
     final alerts = _budgetAlerts;
 
     return CustomScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 6),
+            padding: const EdgeInsets.fromLTRB(20, 12, 16, 6),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      greetingForNow(lang),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade500,
-                        fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        greetingForNow(lang),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade500,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Text(
-                      lang == 'km' ? 'ចំណូល-ចំណាយរបស់អ្នក' : 'Your Income & Expense',
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: textColor,
+                      Text(
+                        lang == 'km' ? 'ចំណូល-ចំណាយរបស់អ្នក' : 'Your Income & Expense',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    InkWell(
+                    _buildHeaderIconButton(
+                      icon: Icons.handshake_rounded,
+                      color: Colors.indigoAccent,
                       onTap: onOpenDebtTracker,
-                      borderRadius: BorderRadius.circular(30),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : Colors.grey.shade100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.handshake_rounded, color: Colors.indigoAccent, size: 20),
-                      ),
+                      isDark: isDark,
                     ),
-                    const SizedBox(width: 8),
-                    InkWell(
+                    const SizedBox(width: 6),
+                    _buildHeaderIconButton(
+                      icon: Icons.savings_rounded,
+                      color: AppColors.income,
                       onTap: onOpenSavingsGoals,
-                      borderRadius: BorderRadius.circular(30),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : Colors.grey.shade100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.savings_rounded, color: AppColors.income, size: 20),
-                      ),
+                      isDark: isDark,
                     ),
-                    const SizedBox(width: 8),
-                    InkWell(
+                    const SizedBox(width: 6),
+                    _buildHeaderIconButton(
+                      icon: Icons.pie_chart_outline_rounded,
+                      color: textColor,
                       onTap: onOpenCategoryBudgets,
-                      borderRadius: BorderRadius.circular(30),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : Colors.grey.shade100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.pie_chart_outline_rounded, color: textColor, size: 20),
-                      ),
+                      isDark: isDark,
                     ),
-                    const SizedBox(width: 8),
-                    InkWell(
+                    const SizedBox(width: 6),
+                    _buildHeaderIconButton(
+                      icon: Icons.settings_rounded,
+                      color: textColor,
                       onTap: onOpenSettings,
-                      borderRadius: BorderRadius.circular(30),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : Colors.grey.shade100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.settings_rounded, color: textColor, size: 20),
-                      ),
+                      isDark: isDark,
                     ),
                   ],
                 ),
@@ -459,20 +444,31 @@ class DashboardView extends StatelessWidget {
         // Search Bar
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: TextField(
-              onChanged: onSearchChanged,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                hintText: lang == 'km' ? 'ស្វែងរកប្រតិបត្តិការ...' : 'Search transactions...',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400),
-                filled: true,
-                fillColor: isDark ? Colors.white10 : Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.cardDark : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: TextField(
+                onChanged: onSearchChanged,
+                style: TextStyle(color: textColor, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: lang == 'km' ? 'ស្វែងរកប្រតិបត្តិការ...' : 'Search transactions...',
+                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                  prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 20),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
               ),
             ),
@@ -625,18 +621,41 @@ class DashboardView extends StatelessWidget {
         if (tx.isEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 60),
+              padding: const EdgeInsets.fromLTRB(24, 40, 24, 60),
               child: Column(
                 children: [
-                  Icon(
-                    Icons.receipt_long_rounded,
-                    size: 72,
-                    color: Colors.grey.shade300,
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.receipt_long_rounded,
+                      size: 38,
+                      color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Text(
                     lang == 'km' ? 'មិនទាន់មានប្រតិបត្តិការទេ' : 'No transactions yet',
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 15),
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : AppColors.navy,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    lang == 'km'
+                        ? 'ចុចលើប៊ូតុង [+] ខាងក្រោម ដើម្បីកត់ត្រាចំណាយដំបូង'
+                        : 'Tap the [+] button below to record your first transaction',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -659,6 +678,31 @@ class DashboardView extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildHeaderIconButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white10 : Colors.grey.shade100,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 19),
+        ),
+      ),
     );
   }
 }

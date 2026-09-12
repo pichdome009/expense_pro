@@ -285,36 +285,38 @@ class WalletSelectorBar extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         margin: const EdgeInsets.only(right: 10, top: 4, bottom: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? color
               : (isDark ? AppColors.cardDark : Colors.white),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: (isSelected ? color : Colors.black).withValues(alpha: isSelected ? 0.3 : 0.05),
+              color: (isSelected ? color : Colors.black).withValues(alpha: isSelected ? 0.28 : 0.03),
               blurRadius: 10,
-              offset: const Offset(0, 4),
+              offset: const Offset(0, 3),
             ),
           ],
           border: isSelected
               ? null
-              : Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+              : Border.all(
+                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+                ),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? Colors.white.withValues(alpha: 0.2)
-                    : color.withValues(alpha: 0.15),
+                    ? Colors.white.withValues(alpha: 0.22)
+                    : color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 16, color: isSelected ? Colors.white : color),
+              child: Icon(icon, size: 15, color: isSelected ? Colors.white : color),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -330,7 +332,7 @@ class WalletSelectorBar extends StatelessWidget {
                 Text(
                   balanceText,
                   style: TextStyle(
-                    color: isSelected ? Colors.white.withValues(alpha: 0.8) : Colors.grey.shade500,
+                    color: isSelected ? Colors.white.withValues(alpha: 0.85) : Colors.grey.shade500,
                     fontSize: 11,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   ),
