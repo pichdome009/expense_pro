@@ -121,18 +121,18 @@ class _SettingsSheetState extends State<SettingsSheet> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        padding: EdgeInsets.only(
-          top: 20,
-          left: 22,
-          right: 22,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 30,
-        ),
-        child: SingleChildScrollView(
+      child: Material(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: EdgeInsets.only(
+            top: 20,
+            left: 22,
+            right: 22,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 30,
+          ),
+          child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -697,7 +697,8 @@ class _SettingsSheetState extends State<SettingsSheet> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 
   Widget _currencyTab(String label, String value) {

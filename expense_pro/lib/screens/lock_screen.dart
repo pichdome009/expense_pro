@@ -124,12 +124,19 @@ class _LockScreenState extends State<LockScreen>
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(flex: 2),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Spacer(flex: 2),
               // App Icon / Logo
               Container(
                 width: 76,
@@ -232,9 +239,14 @@ class _LockScreenState extends State<LockScreen>
               // Keypad
               _buildKeypad(isDark),
 
-              const Spacer(flex: 2),
-            ],
-          ),
+                        const Spacer(flex: 2),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
