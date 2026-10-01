@@ -21,3 +21,20 @@ workflows:
           zip -r app-unsigned.ipa Payload
     artifacts:
       - expense_pro/app-unsigned.ipa
+
+  android-release:
+    name: Android Release Build
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd expense_pro && flutter packages pub get
+      - name: Build Android APK
+        script: |
+          cd expense_pro && flutter build apk --release
+    artifacts:
+      - expense_pro/build/app/outputs/flutter-apk/app-release.apk
