@@ -1,8 +1,7 @@
-import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../utils/file_saver_helper.dart';
 
 import '../constants/app_colors.dart';
 import '../models/transaction.dart';
@@ -168,18 +167,14 @@ class _ExportModalState extends State<ExportModal> {
         );
       }
 
-      final tempDir = await getTemporaryDirectory();
-      final filePath =
-          '${tempDir.path}/expense_pro_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
-      final file = File(filePath);
-      await file.writeAsString(buffer.toString(), flush: true);
+      final fileName =
+          'expense_pro_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
 
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(filePath)],
-          subject: 'របាយការណ៍ Expense Pro CSV',
-          text: 'ទិន្នន័យប្រតិបត្តិការ Expense Pro (CSV)',
-        ),
+      await saveAndShareFile(
+        bytes: utf8.encode(buffer.toString()),
+        fileName: fileName,
+        subject: 'របាយការណ៍ Expense Pro CSV',
+        text: 'ទិន្នន័យប្រតិបត្តិការ Expense Pro (CSV)',
       );
     } catch (e) {
       if (mounted) {
@@ -235,7 +230,7 @@ class _ExportModalState extends State<ExportModal> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'នាំចេញទិន្នន័យ (Export)',
+                'នាំចេញទិន្នន័យ',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               Row(
@@ -319,7 +314,7 @@ class _ExportModalState extends State<ExportModal> {
             icon: Icons.picture_as_pdf_rounded,
             iconColor: Colors.red.shade600,
             iconBg: Colors.red.shade50,
-            title: 'របាយការណ៍ PDF (PDF Statement)',
+            title: 'របាយការណ៍ PDF',
             subtitle: 'របាយការណ៍ផ្លូវការ មានតារាងទិន្នន័យ និងសង្ខេបចំណូលចំណាយ',
             actions: [
               OutlinedButton.icon(

@@ -137,32 +137,25 @@ class _SplashScreenState extends State<SplashScreen>
                       child: ScaleTransition(
                         scale: _scaleAnimation,
                         child: Container(
-                          width: 100,
-                          height: 100,
+                          width: 105,
+                          height: 105,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Color(0xFF34D399),
-                                AppColors.primary,
-                                AppColors.primaryDeep,
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(28),
+                            borderRadius: BorderRadius.circular(26),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.45),
-                                blurRadius: 28,
+                                color: AppColors.primary.withValues(alpha: 0.4),
+                                blurRadius: 26,
                                 offset: const Offset(0, 10),
                               ),
                             ],
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.account_balance_wallet_rounded,
-                              size: 48,
-                              color: Colors.white,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Image.asset(
+                              'assets/icons/logo.png',
+                              width: 105,
+                              height: 105,
+                              fit: BoxFit.cover,
                             ),
                           ),
                         ),

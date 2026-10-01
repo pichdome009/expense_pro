@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_constants.dart';
 import '../models/transaction.dart';
-import '../utils/formatters.dart';
 
 class TxItemCard extends StatelessWidget {
   final Transaction tx;
@@ -20,6 +19,36 @@ class TxItemCard extends StatelessWidget {
     required this.currency,
     required this.rate,
   });
+
+  String _formatPrimaryAmount(bool isTransfer, bool isIncome) {
+    final sign = isTransfer ? '⇄ ' : (isIncome ? '+' : '-');
+    if (currency == 'KHR') {
+      // If transaction was originally recorded in KHR, always display exact historical KHR!
+      if (tx.originalCurrency == 'KHR' && tx.originalAmount != null) {
+        return '$sign${NumberFormat('#,##0').format(tx.originalAmount)} ៛';
+      }
+      // If transaction was originally in USD, convert using historical rate if available
+      final usedRate = tx.exchangeRate ?? rate;
+      return '$sign${NumberFormat('#,##0').format(tx.amount * usedRate)} ៛';
+    } else {
+      // Display currency is USD
+      return '$sign\$${tx.amount.toStringAsFixed(2)}';
+    }
+  }
+
+  String? _formatSecondaryAmount() {
+    if (currency == 'KHR') {
+      // In KHR view: show USD reference
+      return '(\$${tx.amount.toStringAsFixed(2)})';
+    } else {
+      // In USD view: show KHR equivalent (historical if originally KHR)
+      if (tx.originalCurrency == 'KHR' && tx.originalAmount != null) {
+        return '(${NumberFormat('#,##0').format(tx.originalAmount)} ៛)';
+      }
+      final usedRate = tx.exchangeRate ?? rate;
+      return '(${NumberFormat('#,##0').format(tx.amount * usedRate)} ៛)';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,21 +161,17 @@ class TxItemCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${isTransfer ? '⇄ ' : isIncome ? '+' : '-'}${formatCurrency(tx.amount, currency, rate)}',
+                    _formatPrimaryAmount(isTransfer, isIncome),
                     style: TextStyle(
                       color: amountColor,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (tx.originalCurrency != null &&
-                      tx.originalCurrency != currency &&
-                      tx.originalAmount != null) ...[
+                  if (_formatSecondaryAmount() != null) ...[
                     const SizedBox(height: 2),
                     Text(
-                      tx.originalCurrency == 'KHR'
-                          ? '(${NumberFormat('#,##0').format(tx.originalAmount)} ៛)'
-                          : '(\$${tx.originalAmount!.toStringAsFixed(2)})',
+                      _formatSecondaryAmount()!,
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey.shade500,

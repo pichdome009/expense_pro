@@ -1,7 +1,7 @@
 name: expense_pro
 description: "Expense Pro - កម្មវិធីគ្រប់គ្រងចំណាយផ្ទាល់ខ្លួន"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -26,6 +26,30 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/logo.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icons/logo.png"
+    background_color: "#10B981"
+    theme_color: "#10B981"
+  windows:
+    generate: true
+    image_path: "assets/icons/logo.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "assets/icons/logo.png"
+  linux:
+    generate: true
+    image_path: "assets/icons/logo.png"
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/

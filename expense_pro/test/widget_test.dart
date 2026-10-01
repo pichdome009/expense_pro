@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:expense_pro/main.dart';
+import 'package:expense_pro/screens/lock_screen.dart';
 import 'package:expense_pro/models/category.dart';
 import 'package:expense_pro/models/debt_loan.dart';
 import 'package:expense_pro/models/saving_goal.dart';
@@ -16,6 +17,9 @@ import 'package:expense_pro/services/security_service.dart';
 import 'package:expense_pro/services/storage_service.dart';
 import 'package:expense_pro/utils/app_strings.dart';
 import 'package:expense_pro/utils/formatters.dart';
+import 'package:expense_pro/widgets/category_budget_modal.dart';
+import 'package:expense_pro/widgets/tx_item_card.dart';
+import 'package:expense_pro/widgets/wallet_selector.dart';
 
 void main() {
   testWidgets('App smoke test - loads and displays dashboard with wallets', (WidgetTester tester) async {
@@ -100,6 +104,11 @@ void main() {
 
     await SecurityService.setAppLockEnabled(false);
     expect(await SecurityService.isAppLockEnabled(), false);
+
+    // Auto-lock timeout
+    expect(await SecurityService.getAutoLockTimeoutSeconds(), 30);
+    await SecurityService.setAutoLockTimeoutSeconds(60);
+    expect(await SecurityService.getAutoLockTimeoutSeconds(), 60);
   });
 
   test('ExcelExportService creates valid spreadsheet bytes', () async {
@@ -445,4 +454,412 @@ void main() {
     expect(parseAmount('   '), 0.0);
     expect(parseAmount('abc'), 0.0);
   });
+
+  test('StorageService - atomic writes, backup checkpoints, and self-healing recovery', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+
+    final testTxs = [
+      Transaction(
+        id: 'tx_safe_1',
+        title: 'Lunch Safe',
+        amount: 12.5,
+        category: 'អាហារ',
+        date: DateTime(2026, 4, 1),
+        type: TxType.expense,
+        walletId: 'aba_bank',
+      ),
+      Transaction(
+        id: 'tx_safe_2',
+        title: 'Salary Safe',
+        amount: 800.0,
+        category: 'ប្រាក់ខែ',
+        date: DateTime(2026, 4, 1),
+        type: TxType.income,
+        walletId: 'default_cash',
+      ),
+    ];
+
+    // 1. Save transactions and verify primary and backup are both written
+    await StorageService.saveTransactions(testTxs);
+    expect(prefs.containsKey('transactions_v2'), true);
+    expect(prefs.containsKey('transactions_v2_bak'), true);
+    expect(await StorageService.hasInternalBackup(), true);
+
+    // 2. Load transactions should succeed normally
+    final loaded = await StorageService.loadTransactions();
+    expect(loaded.length, 2);
+    expect(loaded.first.title, 'Lunch Safe');
+
+    // 3. Simulate Primary Key Corruption (e.g. crash/interrupted write produces invalid JSON)
+    await prefs.setString('transactions_v2', '{"invalid_json_corrupted: [');
+
+    // 4. Load transactions should self-heal using the backup snapshot!
+    final recovered = await StorageService.loadTransactions();
+    expect(recovered.length, 2);
+    expect(recovered.first.title, 'Lunch Safe');
+
+    // 5. Verify the primary key has been repaired/self-healed
+    final repairedRaw = prefs.getString('transactions_v2');
+    expect(repairedRaw != null && !repairedRaw.startsWith('{"invalid_json'), true);
+
+    // 6. Test Accidental Wipeout Protection:
+    // If an empty list is passed to saveTransactions, the backup snapshot is preserved
+    await StorageService.saveTransactions([]);
+    final currentPrimary = prefs.getString('transactions_v2');
+    final preservedBackup = prefs.getString('transactions_v2_bak');
+    expect(currentPrimary, '[]');
+    expect(preservedBackup != null && preservedBackup.length > 2, true);
+
+    // 7. Verify clearAll cleanly purges both primary and backups
+    await StorageService.clearAll();
+    expect(prefs.containsKey('transactions_v2'), false);
+    expect(prefs.containsKey('transactions_v2_bak'), false);
+    expect(await StorageService.hasInternalBackup(), false);
+  });
+
+  test('StorageService - wallets, category budgets, saving goals, and debts self-healing', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+
+    // 1. Wallets
+    const testWallet = Wallet(
+      id: 'w_heal_test',
+      name: 'Heal Wallet',
+      icon: Icons.account_balance_wallet,
+      color: Color(0xFF10B981),
+      initialBalance: 250.0,
+    );
+    await StorageService.saveWallets([testWallet]);
+    expect(prefs.containsKey('wallets_v1_bak'), true);
+
+    // Corrupt primary wallets
+    await prefs.setString('wallets_v1', 'broken_wallet_json');
+    final recoveredWallets = await StorageService.loadWallets();
+    expect(recoveredWallets.any((w) => w.id == 'w_heal_test'), true);
+
+    // 2. Category Budgets
+    await StorageService.saveCategoryBudgets({'អាហារ': 150.0, 'កាហ្វេ': 45.0});
+    expect(prefs.containsKey('category_budgets_v1_bak'), true);
+
+    // Corrupt primary category budgets
+    await prefs.setString('category_budgets_v1', '{corrupted');
+    final recoveredBudgets = await StorageService.loadCategoryBudgets();
+    expect(recoveredBudgets['អាហារ'], 150.0);
+    expect(recoveredBudgets['កាហ្វេ'], 45.0);
+
+    // 3. Saving Goals
+    const testGoal = SavingGoal(
+      id: 'goal_heal',
+      title: 'Emergency Fund',
+      targetAmount: 5000.0,
+      currentAmount: 1500.0,
+    );
+    await StorageService.saveSavingGoals([testGoal]);
+    expect(prefs.containsKey('saving_goals_v1_bak'), true);
+
+    // Corrupt primary saving goals
+    await prefs.setString('saving_goals_v1', '[corrupt');
+    final recoveredGoals = await StorageService.loadSavingGoals();
+    expect(recoveredGoals.first.title, 'Emergency Fund');
+  });
+
+  testWidgets('LockScreen overlay is non-destructive and preserves state across app lifecycle', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({
+      'sec_app_lock_enabled_v1': true,
+      'sec_pin_hash_v1': SecurityService.hashPin('1234'),
+      'sec_auto_lock_timeout_v1': 0, // immediate lock
+    });
+
+    await tester.pumpWidget(const ModernExpenseApp());
+    // Advance splash
+    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pumpAndSettle();
+
+    // LockScreen overlay is visible because app lock is enabled
+    expect(find.byType(LockScreen), findsOneWidget);
+
+    // Tap PIN 1-2-3-4 on the on-screen keypad to unlock
+    for (final digit in ['1', '2', '3', '4']) {
+      await tester.tap(find.text(digit).first);
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pumpAndSettle();
+
+    // Now LockScreen is dismissed and dashboard is visible
+    expect(find.byType(LockScreen), findsNothing);
+    expect(find.text('ទំព័រដើម'), findsOneWidget);
+  });
+
+  testWidgets('CategoryBudgetModal - multi-currency consistency and legacy auto-healing', (WidgetTester tester) async {
+    Map<String, double> updatedBudgets = {};
+
+    // 1. Test Legacy Auto-Migration:
+    // If a budget was saved as 410,000 (raw KHR) in earlier versions, opening the modal
+    // automatically normalizes it to 100.0 USD using rate 4100!
+    final legacyCorruptedBudgets = {'អាហារ': 410000.0};
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: CategoryBudgetModal(
+          categoryBudgets: legacyCorruptedBudgets,
+          transactions: const [],
+          customCategories: const [],
+          currency: 'KHR',
+          rate: 4100.0,
+          onBudgetsChanged: (map) => updatedBudgets = map,
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // The legacy 410,000 should be auto-healed to 100.0 USD!
+    expect(updatedBudgets['អាហារ'], 100.0);
+
+    // 2. Open set budget dialog for a category
+    await tester.tap(find.text('អាហារ').first);
+    await tester.pumpAndSettle();
+
+    // Dialog title exists
+    expect(find.text('ថវិកាសម្រាប់ "អាហារ"'), findsOneWidget);
+    // Currency label should indicate Riel (៛) because currency is KHR
+    expect(find.text('ចំនួនទឹកប្រាក់ (៛)'), findsOneWidget);
+
+    // Enter 820,000 ៛ (which equals 200.0 USD at 4100 rate)
+    await tester.enterText(find.byType(TextField).last, '820000');
+    await tester.pump();
+
+    // Live preview shows USD equivalent
+    expect(find.textContaining('≈ \$200.00'), findsOneWidget);
+
+    // Tap 'រក្សាទុក'
+    await tester.tap(find.text('រក្សាទុក'));
+    await tester.pumpAndSettle();
+
+    // Stored budget in USD should be normalized to 200.0 USD!
+    expect(updatedBudgets['អាហារ'], 200.0);
+  });
+
+  test('Transaction model - exchangeRate serialization and legacy auto-derivation', () {
+    // 1. Transaction with explicit exchangeRate
+    final tx = Transaction(
+      id: 'tx_rate_test',
+      title: 'Coffee',
+      amount: 2.50,
+      category: 'កាហ្វេ',
+      date: DateTime(2026, 4, 1),
+      originalCurrency: 'KHR',
+      originalAmount: 10000.0,
+      exchangeRate: 4000.0,
+    );
+
+    final json = tx.toJson();
+    expect(json['exchangeRate'], 4000.0);
+
+    final restored = Transaction.fromJson(json);
+    expect(restored.exchangeRate, 4000.0);
+    expect(restored.originalCurrency, 'KHR');
+    expect(restored.originalAmount, 10000.0);
+
+    // 2. Legacy transaction without exchangeRate field in json:
+    // Auto-derives 10000 / 2.5 = 4000.0
+    final legacyJson = {
+      'id': 'tx_legacy',
+      'title': 'Legacy Lunch',
+      'amount': 2.50,
+      'category': 'អាហារ',
+      'date': DateTime(2026, 4, 1).toIso8601String(),
+      'type': 'expense',
+      'originalCurrency': 'KHR',
+      'originalAmount': 10000.0,
+    };
+    final legacyRestored = Transaction.fromJson(legacyJson);
+    expect(legacyRestored.exchangeRate, 4000.0);
+  });
+
+  testWidgets('TxItemCard preserves exact historical Khmer Riel amount when exchange rate changes', (WidgetTester tester) async {
+    // Historical transaction: 10,000 Riels spent when rate was 4000 (amount = $2.50)
+    final historicalTx = Transaction(
+      id: 'tx_khr_hist',
+      title: 'Morning Coffee',
+      amount: 2.50,
+      category: 'កាហ្វេ',
+      date: DateTime(2026, 4, 1),
+      originalCurrency: 'KHR',
+      originalAmount: 10000.0,
+      exchangeRate: 4000.0,
+    );
+
+    // Render with current exchange rate = 4200 (which would be 10,500 Riels if unpreserved!)
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: TxItemCard(
+          tx: historicalTx,
+          onRemove: (_) {},
+          onEdit: (_) {},
+          currency: 'KHR',
+          rate: 4200.0, // Floating current rate changed to 4200
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // 1. Primary amount must be EXACTLY historical 10,000 ៛, NOT distorted to 10,500 ៛!
+    expect(find.text('-10,000 ៛'), findsOneWidget);
+    expect(find.text('-10,500 ៛'), findsNothing);
+
+    // 2. Secondary amount shows USD base
+    expect(find.text('(\$2.50)'), findsOneWidget);
+  });
+
+  testWidgets('WalletSelectorBar guards against deleting the only wallet', (WidgetTester tester) async {
+    const singleWallet = Wallet(
+      id: 'w_only',
+      name: 'Only Wallet',
+      icon: Icons.wallet,
+      color: Colors.blue,
+      initialBalance: 100,
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: WalletSelectorBar(
+          wallets: const [singleWallet],
+          selectedWalletId: null,
+          transactions: const [],
+          currency: 'USD',
+          rate: 4000.0,
+          onSelectWallet: (_) {},
+          onWalletsChanged: (_) {},
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // Find custom wallet chip and trigger long-press delete
+    await tester.longPress(find.text('Only Wallet'));
+    await tester.pumpAndSettle();
+
+    // Guard snackbar displayed
+    expect(find.text('មិនអាចលុបបានទេ ត្រូវមានកាបូបយ៉ាងហោចណាស់មួយ!'), findsOneWidget);
+  });
+
+  testWidgets('WalletSelectorBar handles deletion with orphan protection dialog (reassignment)', (WidgetTester tester) async {
+    const wallet1 = Wallet(
+      id: 'w_cash',
+      name: 'Cash',
+      icon: Icons.payments,
+      color: Colors.green,
+      initialBalance: 100,
+    );
+    const wallet2 = Wallet(
+      id: 'w_custom_bank',
+      name: 'Custom Bank',
+      icon: Icons.account_balance,
+      color: Colors.blue,
+      initialBalance: 200,
+    );
+
+    final tiedTx = Transaction(
+      id: 'tx_tied',
+      title: 'Coffee',
+      amount: 3.0,
+      category: 'Food',
+      date: DateTime.now(),
+      walletId: 'w_custom_bank',
+    );
+
+    Wallet? deletedWallet;
+    String? reassignedTo;
+    bool? deletedTxs;
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: WalletSelectorBar(
+          wallets: const [wallet1, wallet2],
+          selectedWalletId: null,
+          transactions: [tiedTx],
+          currency: 'USD',
+          rate: 4000.0,
+          onSelectWallet: (_) {},
+          onWalletsChanged: (_) {},
+          onDeleteWallet: (w, {reassignToWalletId, deleteTransactions = false}) {
+            deletedWallet = w;
+            reassignedTo = reassignToWalletId;
+            deletedTxs = deleteTransactions;
+          },
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // Long press Custom Bank
+    await tester.longPress(find.text('Custom Bank'));
+    await tester.pumpAndSettle();
+
+    // Warning dialog should appear with orphan warning
+    expect(find.text('លុបកាបូប "Custom Bank"?'), findsOneWidget);
+    expect(find.textContaining('កាបូបនេះមានប្រតិបត្តិការចំនួន 1'), findsOneWidget);
+    expect(find.text('ផ្ទេរប្រតិបត្តិការទៅកាបូបផ្សេង (ណែនាំ)'), findsOneWidget);
+
+    // Confirm reassignment
+    await tester.tap(find.text('បញ្ជាក់ការផ្ទេរ & លុប'));
+    await tester.pumpAndSettle();
+
+    expect(deletedWallet?.id, 'w_custom_bank');
+    expect(reassignedTo, 'w_cash');
+    expect(deletedTxs, false);
+  });
+
+  test('Auto-heals orphan transactions referencing deleted wallets on load', () async {
+    SharedPreferences.setMockInitialValues({});
+    const validWallet = Wallet(
+      id: 'w_active',
+      name: 'Active Wallet',
+      icon: Icons.wallet,
+      color: Colors.blue,
+    );
+    await StorageService.saveWallets([validWallet]);
+
+    final orphanTx = Transaction(
+      id: 'tx_orphan',
+      title: 'Old Expense',
+      amount: 50.0,
+      category: 'Other',
+      date: DateTime.now(),
+      walletId: 'deleted_wallet_999', // Non-existent wallet
+      toWalletId: 'deleted_wallet_888',
+    );
+    await StorageService.saveTransactions([orphanTx]);
+
+    // Simulate startup load & sanitize logic
+    final loadedWallets = await StorageService.loadWallets();
+    final loadedTx = await StorageService.loadTransactions();
+
+    final validWalletIds = loadedWallets.map((w) => w.id).toSet();
+    final fallbackWalletId = loadedWallets.isNotEmpty ? loadedWallets.first.id : 'default_cash';
+
+    final sanitizedTx = loadedTx.map((t) {
+      String currentWalletId = t.walletId;
+      String? currentToWalletId = t.toWalletId;
+
+      if (!validWalletIds.contains(currentWalletId)) {
+        currentWalletId = fallbackWalletId;
+      }
+      if (currentToWalletId != null && !validWalletIds.contains(currentToWalletId)) {
+        final otherWallets = validWalletIds.where((id) => id != currentWalletId);
+        currentToWalletId = otherWallets.isNotEmpty ? otherWallets.first : null;
+      }
+
+      return t.copyWith(walletId: currentWalletId, toWalletId: currentToWalletId);
+    }).toList();
+
+    expect(sanitizedTx.first.walletId, 'w_active');
+    expect(sanitizedTx.first.toWalletId, isNull);
+  });
 }
+
+
+
+

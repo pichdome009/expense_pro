@@ -82,9 +82,39 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
     final debts = await StorageService.loadDebts();
     final lang = await StorageService.loadLanguage();
 
+    // Auto-heal orphan transactions referencing nonexistent wallets
+    final validWalletIds = wallets.map((w) => w.id).toSet();
+    final fallbackWalletId = wallets.isNotEmpty ? wallets.first.id : 'default_cash';
+    bool needsHeal = false;
+    final sanitizedTx = tx.map((t) {
+      bool changed = false;
+      String currentWalletId = t.walletId;
+      String? currentToWalletId = t.toWalletId;
+
+      if (!validWalletIds.contains(currentWalletId)) {
+        currentWalletId = fallbackWalletId;
+        changed = true;
+      }
+      if (currentToWalletId != null && !validWalletIds.contains(currentToWalletId)) {
+        final otherWallets = validWalletIds.where((id) => id != currentWalletId);
+        currentToWalletId = otherWallets.isNotEmpty ? otherWallets.first : null;
+        changed = true;
+      }
+
+      if (changed) {
+        needsHeal = true;
+        return t.copyWith(walletId: currentWalletId, toWalletId: currentToWalletId);
+      }
+      return t;
+    }).toList();
+
+    if (needsHeal) {
+      await StorageService.saveTransactions(sanitizedTx);
+    }
+
     if (!mounted) return;
     setState(() {
-      _tx = tx;
+      _tx = sanitizedTx;
       _monthlyBudget = budget;
       _currency = currency;
       _rate = rate;
@@ -224,6 +254,35 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
   void _onWalletsChanged(List<Wallet> list) {
     setState(() => _wallets = list);
     StorageService.saveWallets(list);
+  }
+
+  void _onDeleteWallet(Wallet wallet, {String? reassignToWalletId, bool deleteTransactions = false}) {
+    final updatedWallets = List<Wallet>.from(_wallets)..removeWhere((w) => w.id == wallet.id);
+
+    List<Transaction> updatedTx = List<Transaction>.from(_tx);
+    if (deleteTransactions) {
+      updatedTx.removeWhere((t) => t.walletId == wallet.id || t.toWalletId == wallet.id);
+    } else if (reassignToWalletId != null) {
+      updatedTx = updatedTx.map((t) {
+        final newWalletId = t.walletId == wallet.id ? reassignToWalletId : t.walletId;
+        final newToWalletId = t.toWalletId == wallet.id ? reassignToWalletId : t.toWalletId;
+        if (newWalletId != t.walletId || newToWalletId != t.toWalletId) {
+          return t.copyWith(walletId: newWalletId, toWalletId: newToWalletId);
+        }
+        return t;
+      }).toList();
+    }
+
+    setState(() {
+      _wallets = updatedWallets;
+      _tx = updatedTx;
+      if (_selectedWalletId == wallet.id) {
+        _selectedWalletId = null;
+      }
+    });
+
+    StorageService.saveWallets(updatedWallets);
+    StorageService.saveTransactions(updatedTx);
   }
 
   void _openCategoryManager() {
@@ -520,6 +579,7 @@ class _MainControllerScreenState extends State<MainControllerScreen> {
         selectedWalletId: _selectedWalletId,
         onSelectWallet: (wid) => setState(() => _selectedWalletId = wid),
         onWalletsChanged: _onWalletsChanged,
+        onDeleteWallet: _onDeleteWallet,
         customCategories: _customCategories,
         categoryBudgets: _categoryBudgets,
         onOpenCategoryBudgets: _openCategoryBudgets,

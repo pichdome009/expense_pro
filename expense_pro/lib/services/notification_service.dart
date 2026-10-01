@@ -26,8 +26,8 @@ class NotificationService {
       // Local push notifications are specifically for mobile devices (Android & iOS)
       if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
 
-      // 1. Initialize timezone database
-      tz.initializeTimeZones();
+      // 1. Initialize timezone database and set device local timezone
+      _ensureTimeZonesInitialized();
 
       // 2. Setup Android & iOS settings
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -72,6 +72,53 @@ class NotificationService {
     }
   }
 
+  /// Ensure timezone database is loaded and local location is configured
+  static void _ensureTimeZonesInitialized() {
+    try {
+      tz.initializeTimeZones();
+      _configureLocalTimeZone();
+    } catch (e) {
+      debugPrint('Initialize timezones error: $e');
+    }
+  }
+
+  /// Match device current timezone offset to correct IANA timezone location
+  static void _configureLocalTimeZone() {
+    try {
+      final now = DateTime.now();
+      final offset = now.timeZoneOffset;
+      final name = now.timeZoneName;
+
+      // 1. Check if name directly matches a location in database
+      if (tz.timeZoneDatabase.locations.containsKey(name)) {
+        tz.setLocalLocation(tz.getLocation(name));
+        return;
+      }
+
+      // 2. Cambodia / Indochina standard time (UTC+7)
+      if (offset.inHours == 7 && offset.inMinutes == 420) {
+        if (tz.timeZoneDatabase.locations.containsKey('Asia/Phnom_Penh')) {
+          tz.setLocalLocation(tz.getLocation('Asia/Phnom_Penh'));
+          return;
+        } else if (tz.timeZoneDatabase.locations.containsKey('Asia/Bangkok')) {
+          tz.setLocalLocation(tz.getLocation('Asia/Bangkok'));
+          return;
+        }
+      }
+
+      // 3. Fallback: match any location with identical current timezone offset
+      for (final loc in tz.timeZoneDatabase.locations.values) {
+        final locTime = tz.TZDateTime.now(loc);
+        if (locTime.timeZoneOffset == offset) {
+          tz.setLocalLocation(loc);
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Configure local timezone error: $e');
+    }
+  }
+
   /// Request permissions for iOS and Android 13+
   static Future<bool> requestPermissions() async {
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return false;
@@ -109,6 +156,8 @@ class NotificationService {
   }) async {
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
     await cancelDailyReminder();
+
+    _ensureTimeZonesInitialized();
 
     final now = tz.TZDateTime.now(tz.local);
     var scheduledDate = tz.TZDateTime(

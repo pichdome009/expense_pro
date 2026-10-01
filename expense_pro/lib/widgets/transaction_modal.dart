@@ -171,8 +171,9 @@ class _TransactionModalState extends State<TransactionModal> {
 
     // Convert to base USD amount
     final double baseUsdAmount;
+    final double effectiveRate = (widget.rate > 0) ? widget.rate : 4100.0;
     if (_inputCurrency == 'KHR') {
-      baseUsdAmount = inputVal! / (widget.rate > 0 ? widget.rate : 4100.0);
+      baseUsdAmount = inputVal! / effectiveRate;
     } else {
       baseUsdAmount = inputVal!;
     }
@@ -190,6 +191,7 @@ class _TransactionModalState extends State<TransactionModal> {
       toWalletId: _type == TxType.transfer ? _toWalletId : null,
       originalCurrency: _inputCurrency,
       originalAmount: inputVal,
+      exchangeRate: effectiveRate,
     );
 
     if (_isEditing) {
@@ -282,7 +284,7 @@ class _TransactionModalState extends State<TransactionModal> {
             if (widget.wallets.isNotEmpty) ...[
               if (_type == TxType.transfer) ...[
                 Text(
-                  'ពីកាបូប (From Wallet)',
+                  'ពីកាបូប',
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
@@ -334,7 +336,7 @@ class _TransactionModalState extends State<TransactionModal> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'ទៅកាន់កាបូប (To Wallet)',
+                  'ទៅកាន់កាបូប',
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),

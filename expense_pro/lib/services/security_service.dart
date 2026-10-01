@@ -7,7 +7,10 @@ class SecurityService {
   static const _kAppLockEnabledKey = 'sec_app_lock_enabled_v1';
   static const _kBiometricsEnabledKey = 'sec_biometrics_enabled_v1';
   static const _kPinHashKey = 'sec_pin_hash_v1';
+  static const _kAutoLockTimeoutKey = 'sec_auto_lock_timeout_v1';
   static const _kPinSalt = 'expense_pro_secure_salt_2026';
+
+  static const int defaultAutoLockTimeoutSeconds = 30;
 
   static final LocalAuthentication _localAuth = LocalAuthentication();
 
@@ -21,6 +24,18 @@ class SecurityService {
   static Future<void> setAppLockEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kAppLockEnabledKey, enabled);
+  }
+
+  /// Get auto-lock timeout duration in seconds (defaults to 30s)
+  static Future<int> getAutoLockTimeoutSeconds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_kAutoLockTimeoutKey) ?? defaultAutoLockTimeoutSeconds;
+  }
+
+  /// Set auto-lock timeout duration in seconds
+  static Future<void> setAutoLockTimeoutSeconds(int seconds) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kAutoLockTimeoutKey, seconds);
   }
 
   /// Check if biometric authentication is enabled

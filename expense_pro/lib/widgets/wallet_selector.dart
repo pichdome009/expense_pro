@@ -12,6 +12,7 @@ class WalletSelectorBar extends StatelessWidget {
   final double rate;
   final ValueChanged<String?> onSelectWallet;
   final ValueChanged<List<Wallet>> onWalletsChanged;
+  final void Function(Wallet wallet, {String? reassignToWalletId, bool deleteTransactions})? onDeleteWallet;
 
   const WalletSelectorBar({
     super.key,
@@ -22,6 +23,7 @@ class WalletSelectorBar extends StatelessWidget {
     required this.rate,
     required this.onSelectWallet,
     required this.onWalletsChanged,
+    this.onDeleteWallet,
   });
 
   double _getWalletBalance(Wallet wallet) {
@@ -119,7 +121,7 @@ class WalletSelectorBar extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'បន្ថែមកាបូបលុយថ្មី (New Wallet)',
+                        'បន្ថែមកាបូបលុយថ្មី',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       IconButton(
@@ -243,31 +245,237 @@ class WalletSelectorBar extends StatelessWidget {
   }
 
   void _confirmDeleteWallet(BuildContext context, Wallet w) async {
-    final confirmed = await showDialog<bool>(
+    if (wallets.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('មិនអាចលុបបានទេ ត្រូវមានកាបូបយ៉ាងហោចណាស់មួយ!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final tiedTxs = transactions.where((t) => t.walletId == w.id || t.toWalletId == w.id).toList();
+    final otherWallets = wallets.where((x) => x.id != w.id).toList();
+
+    if (tiedTxs.isEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('លុបកាបូប "${w.name}"?'),
+          content: const Text('កាបូបនេះគ្មានប្រតិបត្តិការកត់ត្រាឡើយ។ តើអ្នកពិតជាចង់លុបមែនទេ?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('បោះបង់'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('លុប', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
+        if (onDeleteWallet != null) {
+          onDeleteWallet!(w, reassignToWalletId: null, deleteTransactions: false);
+        } else {
+          final updated = List<Wallet>.from(wallets)..removeWhere((x) => x.id == w.id);
+          if (selectedWalletId == w.id) {
+            onSelectWallet(null);
+          }
+          onWalletsChanged(updated);
+        }
+      }
+      return;
+    }
+
+    // Tied transactions exist: show interactive orphan protection dialog
+    String targetWalletId = otherWallets.first.id;
+    int actionChoice = 0; // 0 = Reassign, 1 = Delete transactions
+
+    await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('លុបកាបូប "${w.name}"?'),
-        content: const Text('ប្រតិបត្តិការដែលបានកត់ត្រានឹងមិនត្រូវបានលុបទេ។'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('បោះបង់'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 24),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Text('លុបកាបូប "${w.name}"?')),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('លុប', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'កាបូបនេះមានប្រតិបត្តិការចំនួន ${tiedTxs.length} ដែលកំពុងប្រើប្រាស់។ សូមជ្រើសរើសដំណោះស្រាយការពារទិន្នន័យ៖',
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+
+              // Option 0: Reassign (Recommended)
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => setDialogState(() => actionChoice = 0),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: actionChoice == 0
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: actionChoice == 0
+                          ? AppColors.primary
+                          : Colors.grey.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            actionChoice == 0
+                                ? Icons.radio_button_checked_rounded
+                                : Icons.radio_button_off_rounded,
+                            color: actionChoice == 0 ? AppColors.primary : Colors.grey,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'ផ្ទេរប្រតិបត្តិការទៅកាបូបផ្សេង (ណែនាំ)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (actionChoice == 0) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              value: targetWalletId,
+                              items: otherWallets
+                                  .map((ow) => DropdownMenuItem(
+                                        value: ow.id,
+                                        child: Row(
+                                          children: [
+                                            Icon(ow.icon, size: 16, color: ow.color),
+                                            const SizedBox(width: 8),
+                                            Text(ow.name, style: const TextStyle(fontSize: 13)),
+                                          ],
+                                        ),
+                                      ))
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setDialogState(() => targetWalletId = val);
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Option 1: Delete all transactions tied to this wallet
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => setDialogState(() => actionChoice = 1),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: actionChoice == 1
+                        ? Colors.red.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: actionChoice == 1
+                          ? Colors.red
+                          : Colors.grey.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        actionChoice == 1
+                            ? Icons.radio_button_checked_rounded
+                            : Icons.radio_button_off_rounded,
+                        color: actionChoice == 1 ? Colors.red : Colors.grey,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'លុបប្រតិបត្តិការទាំង ${tiedTxs.length} ចោលទាំងអស់',
+                          style: TextStyle(
+                            color: actionChoice == 1 ? Colors.red : null,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('បោះបង់'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (actionChoice == 0) {
+                  if (onDeleteWallet != null) {
+                    onDeleteWallet!(w, reassignToWalletId: targetWalletId, deleteTransactions: false);
+                  }
+                } else {
+                  if (onDeleteWallet != null) {
+                    onDeleteWallet!(w, reassignToWalletId: null, deleteTransactions: true);
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: actionChoice == 1 ? Colors.red : AppColors.primary,
+              ),
+              child: Text(
+                actionChoice == 1 ? 'លុបទាំងអស់' : 'បញ្ជាក់ការផ្ទេរ & លុប',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
       ),
     );
-    if (confirmed == true) {
-      final updated = List<Wallet>.from(wallets)..removeWhere((x) => x.id == w.id);
-      if (selectedWalletId == w.id) {
-        onSelectWallet(null);
-      }
-      onWalletsChanged(updated);
-    }
   }
 
   @override

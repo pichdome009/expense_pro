@@ -40,6 +40,7 @@ class DashboardView extends StatelessWidget {
   final String? selectedWalletId;
   final ValueChanged<String?> onSelectWallet;
   final ValueChanged<List<Wallet>> onWalletsChanged;
+  final void Function(Wallet wallet, {String? reassignToWalletId, bool deleteTransactions})? onDeleteWallet;
 
   // Custom Categories & Budgets
   final List<Category> customCategories;
@@ -82,6 +83,7 @@ class DashboardView extends StatelessWidget {
     required this.selectedWalletId,
     required this.onSelectWallet,
     required this.onWalletsChanged,
+    this.onDeleteWallet,
     required this.customCategories,
     required this.categoryBudgets,
     required this.onOpenCategoryBudgets,
@@ -136,32 +138,56 @@ class DashboardView extends StatelessWidget {
     return CustomScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
+        // Header
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 16, 6),
             child: Row(
               children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.asset(
+                      'assets/icons/logo.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        greetingForNow(lang),
+                        lang == 'km' ? 'ចំណូល & ចំណាយរបស់អ្នក' : 'Your Income & Expense',
                         style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade500,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        lang == 'km' ? 'ចំណូល-ចំណាយរបស់អ្នក' : 'Your Income & Expense',
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Expense Pro',
                         style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          color: textColor,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF10B981),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -170,37 +196,11 @@ class DashboardView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildHeaderIconButton(
-                      icon: Icons.handshake_rounded,
-                      color: Colors.indigoAccent,
-                      onTap: onOpenDebtTracker,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 6),
-                    _buildHeaderIconButton(
-                      icon: Icons.savings_rounded,
-                      color: AppColors.income,
-                      onTap: onOpenSavingsGoals,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 6),
-                    _buildHeaderIconButton(
-                      icon: Icons.pie_chart_outline_rounded,
-                      color: textColor,
-                      onTap: onOpenCategoryBudgets,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 6),
-                    _buildHeaderIconButton(
-                      icon: Icons.settings_rounded,
-                      color: textColor,
-                      onTap: onOpenSettings,
-                      isDark: isDark,
-                    ),
-                  ],
+                _buildHeaderIconButton(
+                  icon: Icons.settings_rounded,
+                  color: isDark ? Colors.white : Colors.black87,
+                  onTap: onOpenSettings,
+                  isDark: isDark,
                 ),
               ],
             ),
@@ -219,6 +219,7 @@ class DashboardView extends StatelessWidget {
               rate: rate,
               onSelectWallet: onSelectWallet,
               onWalletsChanged: onWalletsChanged,
+              onDeleteWallet: onDeleteWallet,
             ),
           ),
         ),
@@ -237,6 +238,34 @@ class DashboardView extends StatelessWidget {
               currency: currency,
               rate: rate,
               lang: lang,
+            ),
+          ),
+        ),
+
+        // Quick Action Cards: Savings Goal & Debt Tracker
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildActionPillCard(
+                    title: lang == 'km' ? 'សន្សំប្រាក់' : 'Savings Goal',
+                    icon: Icons.savings_rounded,
+                    onTap: onOpenSavingsGoals,
+                    isDark: isDark,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildActionPillCard(
+                    title: lang == 'km' ? 'តាមដានបំណុល' : 'Debt Tracker',
+                    isDebtIcon: true,
+                    onTap: onOpenDebtTracker,
+                    isDark: isDark,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -691,16 +720,117 @@ class DashboardView extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         child: Container(
-          width: 38,
-          height: 38,
+          width: 42,
+          height: 42,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isDark ? Colors.white10 : Colors.grey.shade100,
+            color: isDark ? Colors.white12 : Colors.grey.shade200,
             shape: BoxShape.circle,
+            boxShadow: isDark
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
-          child: Icon(icon, color: color, size: 19),
+          child: Icon(icon, color: color, size: 22),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionPillCard({
+    required String title,
+    IconData? icon,
+    bool isDebtIcon = false,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    final bgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFF131B2E);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          height: 56,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF064E3B).withValues(alpha: 0.7),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: isDebtIcon
+                      ? Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            const Icon(
+                              Icons.person_rounded,
+                              size: 19,
+                              color: Color(0xFF34D399),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(0.5),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF059669),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.attach_money_rounded,
+                                  size: 10,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Icon(
+                          icon ?? Icons.savings_rounded,
+                          size: 19,
+                          color: const Color(0xFF34D399),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

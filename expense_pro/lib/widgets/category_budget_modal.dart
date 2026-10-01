@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_constants.dart';
 import '../models/category.dart';
@@ -34,6 +35,18 @@ class _CategoryBudgetModalState extends State<CategoryBudgetModal> {
   void initState() {
     super.initState();
     _budgets = Map<String, double>.from(widget.categoryBudgets);
+    bool migrated = false;
+    _budgets.forEach((k, v) {
+      // Auto-heal legacy corruptions: if budget was saved > 5000 and rate >= 3000,
+      // it was entered in raw KHR prior to normalization
+      if (v >= 5000 && widget.rate >= 3000) {
+        _budgets[k] = v / widget.rate;
+        migrated = true;
+      }
+    });
+    if (migrated) {
+      widget.onBudgetsChanged(_budgets);
+    }
   }
 
   List<Category> get _expenseCategories {
@@ -56,66 +69,110 @@ class _CategoryBudgetModalState extends State<CategoryBudgetModal> {
   }
 
   void _showSetBudgetDialog(Category cat) {
-    final currentBudget = _budgets[cat.name] ?? 0.0;
-    final ctrl = TextEditingController(
-      text: currentBudget > 0 ? currentBudget.toStringAsFixed(2) : '',
-    );
+    final currentBudgetUsd = _budgets[cat.name] ?? 0.0;
+    final isKhr = widget.currency == 'KHR';
+    final initialText = currentBudgetUsd > 0
+        ? (isKhr ? (currentBudgetUsd * widget.rate).round().toString() : currentBudgetUsd.toStringAsFixed(2))
+        : '';
+    final ctrl = TextEditingController(text: initialText);
 
     showDialog(
       context: context,
-      builder: (dctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: cat.color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+      builder: (dctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final entered = parseAmount(ctrl.text);
+          String previewText = '';
+          if (entered > 0) {
+            if (isKhr) {
+              final usdEquiv = entered / widget.rate;
+              previewText = '≈ \$${usdEquiv.toStringAsFixed(2)} (អត្រា 1\$ = ${NumberFormat('#,##0').format(widget.rate)} ៛)';
+            } else {
+              final khrEquiv = entered * widget.rate;
+              previewText = '≈ ${NumberFormat('#,##0').format(khrEquiv)} ៛ (អត្រា 1\$ = ${NumberFormat('#,##0').format(widget.rate)} ៛)';
+            }
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: cat.color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(cat.icon, color: cat.color, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Text('ថវិកាសម្រាប់ "${cat.name}"')),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: InputDecoration(
+                    labelText: isKhr ? 'ចំនួនទឹកប្រាក់ (៛)' : 'ចំនួនទឹកប្រាក់ (\$)',
+                    hintText: isKhr ? 'ឧ. 200,000' : 'ឧ. 50',
+                    prefixIcon: Icon(
+                      isKhr ? Icons.payments_outlined : Icons.attach_money_rounded,
+                      color: AppColors.primary,
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.withValues(alpha: 0.08),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                if (previewText.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      previewText,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  setState(() => _budgets.remove(cat.name));
+                  widget.onBudgetsChanged(_budgets);
+                  Navigator.pop(dctx);
+                },
+                child: const Text('លុបថវិកា', style: TextStyle(color: Colors.red)),
               ),
-              child: Icon(cat.icon, color: cat.color, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text('ថវិកាសម្រាប់ "${cat.name}"')),
-          ],
-        ),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: 'ចំនួនទឹកប្រាក់ (\$)',
-            hintText: 'ឧ. 150',
-            filled: true,
-            fillColor: Colors.grey.withValues(alpha: 0.08),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              setState(() => _budgets.remove(cat.name));
-              widget.onBudgetsChanged(_budgets);
-              Navigator.pop(dctx);
-            },
-            child: const Text('លុបថវិកា', style: TextStyle(color: Colors.red)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final val = parseAmount(ctrl.text);
-              if (val > 0) {
-                setState(() => _budgets[cat.name] = val);
-                widget.onBudgetsChanged(_budgets);
-              }
-              Navigator.pop(dctx);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('រក្សាទុក', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+              ElevatedButton(
+                onPressed: () {
+                  final val = parseAmount(ctrl.text);
+                  if (val > 0) {
+                    final usdVal = isKhr ? (val / widget.rate) : val;
+                    setState(() => _budgets[cat.name] = usdVal);
+                    widget.onBudgetsChanged(_budgets);
+                  }
+                  Navigator.pop(dctx);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                child: const Text('រក្សាទុក', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -164,7 +221,7 @@ class _CategoryBudgetModalState extends State<CategoryBudgetModal> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'ថវិកាតាមប្រភេទ (Category Budget)',
+                  'ថវិកាតាមប្រភេទ',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
@@ -231,7 +288,9 @@ class _CategoryBudgetModalState extends State<CategoryBudgetModal> {
                                   ),
                                   Text(
                                     budget > 0
-                                        ? 'បានចំណាយ: ${formatCurrency(spent, widget.currency, widget.rate)} / ${formatCurrency(budget, widget.currency, widget.rate)}'
+                                        ? (widget.currency == 'KHR'
+                                            ? 'បានចំណាយ: ${formatCurrency(spent, 'KHR', widget.rate)} / ${formatCurrency(budget, 'KHR', widget.rate)} (${formatCurrency(budget, 'USD', widget.rate)})'
+                                            : 'បានចំណាយ: ${formatCurrency(spent, 'USD', widget.rate)} / ${formatCurrency(budget, 'USD', widget.rate)} (${formatCurrency(budget, 'KHR', widget.rate)})')
                                         : 'មិនទាន់កំណត់ថវិកា',
                                     style: TextStyle(
                                       fontSize: 11,

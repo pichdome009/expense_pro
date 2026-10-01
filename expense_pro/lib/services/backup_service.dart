@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../utils/file_saver_helper.dart';
 
 import '../models/category.dart';
 import '../models/debt_loan.dart';
@@ -114,18 +112,15 @@ class BackupService {
   /// (allowing save to Google Drive, Files, Telegram, etc.)
   static Future<void> shareBackupFile() async {
     final jsonStr = await generateBackupJson();
-    final tempDir = await getTemporaryDirectory();
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final filePath = '${tempDir.path}/expense_pro_backup_$timestamp.json';
-    final file = File(filePath);
-    await file.writeAsString(jsonStr, flush: true);
+    final fileName = 'expense_pro_backup_$timestamp.json';
+    final bytes = utf8.encode(jsonStr);
 
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(filePath)],
-        subject: 'Expense Pro Backup ($timestamp)',
-        text: 'ទិន្នន័យបម្រុងទុក Expense Pro Backup JSON',
-      ),
+    await saveAndShareFile(
+      bytes: bytes,
+      fileName: fileName,
+      subject: 'Expense Pro Backup ($timestamp)',
+      text: 'ទិន្នន័យបម្រុងទុក Expense Pro Backup JSON',
     );
   }
 

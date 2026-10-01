@@ -17,6 +17,7 @@ class Transaction {
   final String? toWalletId;
   final String? originalCurrency;
   final double? originalAmount;
+  final double? exchangeRate;
 
   Transaction({
     required this.id,
@@ -31,6 +32,7 @@ class Transaction {
     this.toWalletId,
     this.originalCurrency,
     this.originalAmount,
+    this.exchangeRate,
   });
 
   Map<String, dynamic> toJson() => {
@@ -46,6 +48,7 @@ class Transaction {
         'toWalletId': toWalletId,
         'originalCurrency': originalCurrency,
         'originalAmount': originalAmount,
+        'exchangeRate': exchangeRate,
       };
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
@@ -59,10 +62,22 @@ class Transaction {
       type = TxType.expense;
     }
 
+    final double amount = (json['amount'] as num).toDouble();
+    final double? origAmt = json['originalAmount'] != null
+        ? (json['originalAmount'] as num).toDouble()
+        : null;
+    final String? origCur = json['originalCurrency'];
+    double? exRate = (json['exchangeRate'] as num?)?.toDouble();
+
+    // Auto-derive historical exchange rate if missing from legacy records
+    if (exRate == null && origCur == 'KHR' && origAmt != null && amount > 0) {
+      exRate = origAmt / amount;
+    }
+
     return Transaction(
       id: json['id'],
       title: json['title'],
-      amount: (json['amount'] as num).toDouble(),
+      amount: amount,
       category: json['category'],
       date: DateTime.parse(json['date']),
       type: type,
@@ -70,12 +85,13 @@ class Transaction {
       isRecurring: json['isRecurring'] ?? false,
       walletId: json['walletId'] ?? 'default_cash',
       toWalletId: json['toWalletId'],
-      originalCurrency: json['originalCurrency'],
-      originalAmount: json['originalAmount'] != null
-          ? (json['originalAmount'] as num).toDouble()
-          : null,
+      originalCurrency: origCur,
+      originalAmount: origAmt,
+      exchangeRate: exRate,
     );
   }
+
+  static const _sentinel = Object();
 
   Transaction copyWith({
     String? id,
@@ -87,9 +103,10 @@ class Transaction {
     String? note,
     bool? isRecurring,
     String? walletId,
-    String? toWalletId,
-    String? originalCurrency,
-    double? originalAmount,
+    Object? toWalletId = _sentinel,
+    Object? originalCurrency = _sentinel,
+    Object? originalAmount = _sentinel,
+    Object? exchangeRate = _sentinel,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -101,9 +118,10 @@ class Transaction {
       note: note ?? this.note,
       isRecurring: isRecurring ?? this.isRecurring,
       walletId: walletId ?? this.walletId,
-      toWalletId: toWalletId ?? this.toWalletId,
-      originalCurrency: originalCurrency ?? this.originalCurrency,
-      originalAmount: originalAmount ?? this.originalAmount,
+      toWalletId: identical(toWalletId, _sentinel) ? this.toWalletId : toWalletId as String?,
+      originalCurrency: identical(originalCurrency, _sentinel) ? this.originalCurrency : originalCurrency as String?,
+      originalAmount: identical(originalAmount, _sentinel) ? this.originalAmount : originalAmount as double?,
+      exchangeRate: identical(exchangeRate, _sentinel) ? this.exchangeRate : exchangeRate as double?,
     );
   }
 

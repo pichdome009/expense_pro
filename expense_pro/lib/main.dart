@@ -29,6 +29,7 @@ class _ModernExpenseAppState extends State<ModernExpenseApp>
   bool _isLocked = false;
   bool _isInitialized = false;
   bool _showSplash = true;
+  DateTime? _pausedAt;
 
   // Cache text themes once to prevent re-computing on every frame/rebuild
   static final _lightTextTheme = GoogleFonts.kantumruyProTextTheme();
@@ -45,7 +46,9 @@ class _ModernExpenseAppState extends State<ModernExpenseApp>
   }
 
   Future<void> _checkInitialLock() async {
-    final locked = await SecurityService.isAppLockEnabled();
+    final hasPin = await SecurityService.hasPinCode();
+    final enabled = await SecurityService.isAppLockEnabled();
+    final locked = enabled && hasPin;
     if (mounted) {
       setState(() {
         _isLocked = locked;
@@ -56,13 +59,34 @@ class _ModernExpenseAppState extends State<ModernExpenseApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      SecurityService.isAppLockEnabled().then((enabled) {
-        if (enabled && mounted) {
-          setState(() => _isLocked = true);
-        }
-      });
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _pausedAt ??= DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      _handleAppResume();
     }
+  }
+
+  Future<void> _handleAppResume() async {
+    if (_pausedAt == null) return;
+    final enabled = await SecurityService.isAppLockEnabled();
+    final hasPin = await SecurityService.hasPinCode();
+    if (!enabled || !hasPin || !mounted) {
+      _pausedAt = null;
+      return;
+    }
+
+    if (!_isLocked) {
+      final timeoutSec = await SecurityService.getAutoLockTimeoutSeconds();
+      final elapsed = DateTime.now().difference(_pausedAt!).inSeconds;
+      if (elapsed >= timeoutSec) {
+        if (mounted) {
+          setState(() {
+            _isLocked = true;
+          });
+        }
+      }
+    }
+    _pausedAt = null;
   }
 
   @override
@@ -112,14 +136,33 @@ class _ModernExpenseAppState extends State<ModernExpenseApp>
             )
           : !_isInitialized
               ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-              : _isLocked
-                  ? LockScreen(
-                      onUnlocked: () => setState(() => _isLocked = false),
-                    )
-                  : MainControllerScreen(
-                      onToggleTheme: _toggleTheme,
-                      isDark: _themeMode == ThemeMode.dark,
-                    ),
+              : MainControllerScreen(
+                  onToggleTheme: _toggleTheme,
+                  isDark: _themeMode == ThemeMode.dark,
+                ),
+      builder: (context, child) {
+        return Stack(
+          children: [
+            if (child != null) child,
+            if (!_showSplash && _isInitialized && _isLocked)
+              Positioned.fill(
+                child: PopScope(
+                  canPop: false,
+                  child: LockScreen(
+                    onUnlocked: () {
+                      if (mounted) {
+                        setState(() {
+                          _isLocked = false;
+                          _pausedAt = null;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

@@ -39,20 +39,39 @@ class PdfExportService {
     // Calculate totals
     double totalIncome = 0;
     double totalExpense = 0;
+    double totalIncomeKhr = 0;
+    double totalExpenseKhr = 0;
     for (final t in filtered) {
+      final tKhr = (t.originalCurrency == 'KHR' && t.originalAmount != null)
+          ? t.originalAmount!
+          : (t.amount * (t.exchangeRate ?? rate));
       if (t.type == TxType.income) {
         totalIncome += t.amount;
+        totalIncomeKhr += tKhr;
       } else if (t.type == TxType.expense) {
         totalExpense += t.amount;
+        totalExpenseKhr += tKhr;
       }
     }
     final netBalance = totalIncome - totalExpense;
+    final netBalanceKhr = totalIncomeKhr - totalExpenseKhr;
 
-    String formatAmt(double amt) {
+    String formatAmt(double amtUsd, double amtKhr) {
       if (currency == 'KHR') {
-        return '${NumberFormat('#,###').format(amt * rate)} ៛';
+        return '${NumberFormat('#,###').format(amtKhr)} ៛';
       }
-      return '\$${amt.toStringAsFixed(2)}';
+      return '\$${amtUsd.toStringAsFixed(2)}';
+    }
+
+    String formatTxAmt(Transaction t) {
+      if (currency == 'KHR') {
+        if (t.originalCurrency == 'KHR' && t.originalAmount != null) {
+          return '${NumberFormat('#,###').format(t.originalAmount)} ៛';
+        }
+        final usedRate = t.exchangeRate ?? rate;
+        return '${NumberFormat('#,###').format(t.amount * usedRate)} ៛';
+      }
+      return '\$${t.amount.toStringAsFixed(2)}';
     }
 
     String getWalletName(String? walletId) {
@@ -159,7 +178,7 @@ class PdfExportService {
                 pw.Expanded(
                   child: _buildSummaryBox(
                     title: 'ចំណូលសរុប',
-                    amount: formatAmt(totalIncome),
+                    amount: formatAmt(totalIncome, totalIncomeKhr),
                     color: PdfColors.green700,
                     bgColor: PdfColors.green50,
                     fontBold: fontBold,
@@ -169,7 +188,7 @@ class PdfExportService {
                 pw.Expanded(
                   child: _buildSummaryBox(
                     title: 'ចំណាយសរុប',
-                    amount: formatAmt(totalExpense),
+                    amount: formatAmt(totalExpense, totalExpenseKhr),
                     color: PdfColors.red700,
                     bgColor: PdfColors.red50,
                     fontBold: fontBold,
@@ -179,7 +198,7 @@ class PdfExportService {
                 pw.Expanded(
                   child: _buildSummaryBox(
                     title: 'សមតុល្យសុទ្ធ',
-                    amount: formatAmt(netBalance),
+                    amount: formatAmt(netBalance, netBalanceKhr),
                     color: netBalance >= 0 ? PdfColors.blue700 : PdfColors.orange700,
                     bgColor: netBalance >= 0 ? PdfColors.blue50 : PdfColors.orange50,
                     fontBold: fontBold,
@@ -234,7 +253,7 @@ class PdfExportService {
                   t.title,
                   isTransfer ? 'ផ្ទេរប្រាក់' : t.category,
                   walletStr,
-                  '$sign ${formatAmt(t.amount)}',
+                  '$sign ${formatTxAmt(t)}',
                   t.note.isNotEmpty ? t.note : '-',
                 ];
               }),

@@ -1,9 +1,7 @@
-import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../utils/file_saver_helper.dart';
 
 import '../models/transaction.dart';
 import '../models/wallet.dart';
@@ -77,7 +75,9 @@ class ExcelExportService {
               ? 'ចំណូល (Income)'
               : 'ចំណាយ (Expense)';
       final amtUsd = t.amount;
-      final amtKhr = t.amount * rate;
+      final amtKhr = (t.originalCurrency == 'KHR' && t.originalAmount != null)
+          ? t.originalAmount!
+          : (t.amount * (t.exchangeRate ?? rate));
 
       txSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
         ..value = IntCellValue(i + 1)
@@ -126,17 +126,25 @@ class ExcelExportService {
     // 3. Create Summary Sheet
     final summarySheet = excel['សង្ខេប (Summary)'];
 
-    // Calculate Totals
+    // Calculate Totals with accurate historical rates
     double totalIncome = 0;
     double totalExpense = 0;
+    double totalIncomeKhr = 0;
+    double totalExpenseKhr = 0;
     for (final t in filtered) {
+      final tKhr = (t.originalCurrency == 'KHR' && t.originalAmount != null)
+          ? t.originalAmount!
+          : (t.amount * (t.exchangeRate ?? rate));
       if (t.type == TxType.income) {
         totalIncome += t.amount;
+        totalIncomeKhr += tKhr;
       } else if (t.type == TxType.expense) {
         totalExpense += t.amount;
+        totalExpenseKhr += tKhr;
       }
     }
     final netBalance = totalIncome - totalExpense;
+    final netBalanceKhr = totalIncomeKhr - totalExpenseKhr;
 
     // Summary Header
     summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
@@ -144,9 +152,9 @@ class ExcelExportService {
       ..cellStyle = CellStyle(bold: true, fontSize: 14);
 
     final summaryRows = [
-      ['ចំណូលសរុប (Total Income)', totalIncome, totalIncome * rate],
-      ['ចំណាយសរុប (Total Expense)', totalExpense, totalExpense * rate],
-      ['សមតុល្យសុទ្ធ (Net Balance)', netBalance, netBalance * rate],
+      ['ចំណូលសរុប (Total Income)', totalIncome, totalIncomeKhr],
+      ['ចំណាយសរុប (Total Expense)', totalExpense, totalExpenseKhr],
+      ['សមតុល្យសុទ្ធ (Net Balance)', netBalance, netBalanceKhr],
     ];
 
     final sumHeaders = ['ព័ត៌មាន', 'សរុប (\$ USD)', 'សរុប (៛ KHR)'];
@@ -247,19 +255,14 @@ class ExcelExportService {
 
     if (bytes.isEmpty) return;
 
-    final tempDir = await getTemporaryDirectory();
     final fileName =
         'expense_pro_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
-    final filePath = '${tempDir.path}/$fileName';
-    final file = File(filePath);
-    await file.writeAsBytes(bytes, flush: true);
 
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(filePath)],
-        subject: 'របាយការណ៍ហិរញ្ញវត្ថុ Expense Pro Excel',
-        text: 'របាយការណ៍ហិរញ្ញវត្ថុ Expense Pro (Excel .xlsx)',
-      ),
+    await saveAndShareFile(
+      bytes: bytes,
+      fileName: fileName,
+      subject: 'របាយការណ៍ហិរញ្ញវត្ថុ Expense Pro Excel',
+      text: 'របាយការណ៍ហិរញ្ញវត្ថុ Expense Pro (Excel .xlsx)',
     );
   }
 }

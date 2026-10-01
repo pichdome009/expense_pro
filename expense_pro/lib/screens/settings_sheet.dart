@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../constants/app_colors.dart';
 import '../services/backup_service.dart';
 import '../services/notification_service.dart';
@@ -63,24 +64,42 @@ class _SettingsSheetState extends State<SettingsSheet> {
   bool _dailyReminderEnabled = true;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
   bool _budgetAlertsEnabled = true;
+  int _autoLockTimeout = 30;
 
   @override
   void initState() {
     super.initState();
     _currentCurrency = widget.currency;
     _currentLang = widget.lang;
-    _budgetCtrl = TextEditingController(
-      text: widget.monthlyBudget > 0 ? widget.monthlyBudget.toStringAsFixed(2) : '',
-    );
+    final initialBudgetText = widget.monthlyBudget > 0
+        ? (_currentCurrency == 'KHR'
+            ? (widget.monthlyBudget * widget.rate).round().toString()
+            : widget.monthlyBudget.toStringAsFixed(2))
+        : '';
+    _budgetCtrl = TextEditingController(text: initialBudgetText);
     _rateCtrl = TextEditingController(text: widget.rate.toStringAsFixed(0));
 
     _loadSettings();
+  }
+
+  void _updateBudgetCtrlText([String? newCurrency]) {
+    final cur = newCurrency ?? _currentCurrency;
+    if (widget.monthlyBudget <= 0) {
+      _budgetCtrl.text = '';
+      return;
+    }
+    if (cur == 'KHR') {
+      _budgetCtrl.text = (widget.monthlyBudget * widget.rate).round().toString();
+    } else {
+      _budgetCtrl.text = widget.monthlyBudget.toStringAsFixed(2);
+    }
   }
 
   Future<void> _loadSettings() async {
     final lock = await SecurityService.isAppLockEnabled();
     final bio = await SecurityService.isBiometricsEnabled();
     final canBio = await SecurityService.canCheckBiometrics();
+    final autoLockTime = await SecurityService.getAutoLockTimeoutSeconds();
     final daily = await NotificationService.isDailyReminderEnabled();
     final h = await NotificationService.getDailyReminderHour();
     final m = await NotificationService.getDailyReminderMinute();
@@ -91,6 +110,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
         _appLockEnabled = lock;
         _biometricsEnabled = bio;
         _canCheckBio = canBio;
+        _autoLockTimeout = autoLockTime;
         _dailyReminderEnabled = daily;
         _reminderTime = TimeOfDay(hour: h, minute: m);
         _budgetAlertsEnabled = budgetAlert;
@@ -101,8 +121,11 @@ class _SettingsSheetState extends State<SettingsSheet> {
   @override
   void didUpdateWidget(covariant SettingsSheet oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.currency != widget.currency) {
+    if (oldWidget.currency != widget.currency ||
+        oldWidget.rate != widget.rate ||
+        oldWidget.monthlyBudget != widget.monthlyBudget) {
       _currentCurrency = widget.currency;
+      _updateBudgetCtrlText();
     }
     if (oldWidget.lang != widget.lang) {
       _currentLang = widget.lang;
@@ -180,14 +203,14 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 contentPadding: EdgeInsets.zero,
                 value: widget.isDark,
                 onChanged: widget.onToggleTheme,
-                title: Text(_currentLang == 'km' ? 'របៀបងងឹត (Dark Mode)' : 'Dark Mode'),
+                title: Text(_currentLang == 'km' ? 'របៀបងងឹត' : 'Dark Mode'),
                 secondary: const Icon(Icons.dark_mode_rounded),
                 activeThumbColor: AppColors.primary,
               ),
               const Divider(),
 
               Text(
-                _currentLang == 'km' ? 'ភាសា (Language)' : 'Language',
+                _currentLang == 'km' ? 'ភាសា' : 'Language',
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
               const SizedBox(height: 10),
@@ -247,7 +270,14 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 controller: _budgetCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: _currentLang == 'km' ? 'ថវិកា (\$)' : 'Budget (\$)',
+                  labelText: _currentCurrency == 'KHR'
+                      ? (_currentLang == 'km' ? 'ថវិកា (៛)' : 'Budget (៛)')
+                      : (_currentLang == 'km' ? 'ថវិកា (\$)' : 'Budget (\$)'),
+                  hintText: _currentCurrency == 'KHR' ? 'ឧ. 800,000' : 'ឧ. 200',
+                  prefixIcon: Icon(
+                    _currentCurrency == 'KHR' ? Icons.payments_outlined : Icons.attach_money_rounded,
+                    color: AppColors.primary,
+                  ),
                   filled: true,
                   fillColor: Colors.grey.withValues(alpha: 0.08),
                   border: OutlineInputBorder(
@@ -256,14 +286,35 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   ),
                 ),
                 onChanged: (v) {
-                  final b = parseAmount(v);
-                  if (b >= 0) {
-                    widget.onSetBudget(b);
+                  final raw = parseAmount(v);
+                  if (raw >= 0) {
+                    final usdVal = _currentCurrency == 'KHR' ? (raw / widget.rate) : raw;
+                    widget.onSetBudget(usdVal);
+                    setState(() {});
                   }
                 },
                 onSubmitted: (v) {
-                  final b = parseAmount(v);
-                  widget.onSetBudget(b);
+                  final raw = parseAmount(v);
+                  final usdVal = _currentCurrency == 'KHR' ? (raw / widget.rate) : raw;
+                  widget.onSetBudget(usdVal);
+                  setState(() {});
+                },
+              ),
+              Builder(
+                builder: (_) {
+                  final entered = parseAmount(_budgetCtrl.text);
+                  if (entered <= 0) return const SizedBox.shrink();
+                  final isKhr = _currentCurrency == 'KHR';
+                  final equivText = isKhr
+                      ? '≈ \$${(entered / widget.rate).toStringAsFixed(2)}'
+                      : '≈ ${NumberFormat('#,##0').format(entered * widget.rate)} ៛';
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6, left: 4),
+                    child: Text(
+                      '$equivText (${_currentLang == 'km' ? 'អត្រា' : 'Rate'} 1\$ = ${NumberFormat('#,##0').format(widget.rate)} ៛)',
+                      style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 20),
@@ -272,23 +323,29 @@ class _SettingsSheetState extends State<SettingsSheet> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.category_rounded, color: AppColors.accent),
-              title: const Text('គ្រប់គ្រងប្រភេទ (Custom Categories)'),
-              subtitle: const Text('បង្កើតប្រភេទចំណូល និងចំណាយថ្មីៗ', style: TextStyle(fontSize: 11)),
+              title: Text(_currentLang == 'km' ? 'គ្រប់គ្រងប្រភេទ' : 'Custom Categories'),
+              subtitle: Text(
+                _currentLang == 'km' ? 'បង្កើតប្រភេទចំណូល និងចំណាយថ្មីៗ' : 'Create custom categories',
+                style: const TextStyle(fontSize: 11),
+              ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: widget.onOpenCategoryManager,
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.pie_chart_rounded, color: AppColors.primary),
-              title: const Text('ថវិកាតាមប្រភេទ (Category Budgets)'),
-              subtitle: const Text('កំណត់កម្រិតចំណាយសម្រាប់ប្រភេទនីមួយៗ', style: TextStyle(fontSize: 11)),
+              title: Text(_currentLang == 'km' ? 'ថវិកាតាមប្រភេទ' : 'Category Budgets'),
+              subtitle: Text(
+                _currentLang == 'km' ? 'កំណត់កម្រិតចំណាយសម្រាប់ប្រភេទនីមួយៗ' : 'Set spending limits for each category',
+                style: const TextStyle(fontSize: 11),
+              ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: widget.onOpenCategoryBudgets,
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.savings_rounded, color: AppColors.income),
-              title: Text(_currentLang == 'km' ? 'គោលដៅសន្សំប្រាក់ (Savings Goals)' : 'Savings Goals & Piggy Bank'),
+              title: Text(_currentLang == 'km' ? 'គោលដៅសន្សំប្រាក់' : 'Savings Goals & Piggy Bank'),
               subtitle: Text(_currentLang == 'km' ? 'កំណត់គោលដៅសន្សំ និងកូនជ្រូកសន្សំប្រាក់' : 'Manage your saving targets', style: const TextStyle(fontSize: 11)),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
@@ -299,7 +356,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.handshake_rounded, color: Colors.indigo),
-              title: Text(_currentLang == 'km' ? 'តាមដានបំណុល និងលុយខ្ចី (Debt & Loan)' : 'Debt & Loan Tracker'),
+              title: Text(_currentLang == 'km' ? 'តាមដានបំណុល និងលុយខ្ចី' : 'Debt & Loan Tracker'),
               subtitle: Text(_currentLang == 'km' ? 'កត់ត្រាលុយខ្ចីគេ និងលុយគេខ្ចី' : 'Track money lent and borrowed', style: const TextStyle(fontSize: 11)),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
@@ -310,7 +367,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.widgets_rounded, color: Colors.teal),
-              title: Text(_currentLang == 'km' ? 'Widget & ផ្លូវកាត់លើអេក្រង់ (Widget & Shortcuts)' : 'Home Screen Widget & Shortcuts'),
+              title: Text(_currentLang == 'km' ? 'Widget & ផ្លូវកាត់លើអេក្រង់' : 'Home Screen Widget & Shortcuts'),
               subtitle: Text(_currentLang == 'km' ? 'របៀបដាក់ Widget និងផ្លូវកាត់ប្រតិបត្តិការរហ័ស' : 'How to use quick widgets and shortcuts', style: const TextStyle(fontSize: 11)),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
@@ -355,9 +412,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
 
             const Divider(),
             const SizedBox(height: 8),
-            const Text(
-              'សុវត្ថិភាព និងការចាក់សោ (Security)',
-              style: TextStyle(
+            Text(
+              _currentLang == 'km' ? 'សុវត្ថិភាព និងការចាក់សោ' : 'Security & App Lock',
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
@@ -367,8 +424,11 @@ class _SettingsSheetState extends State<SettingsSheet> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               secondary: const Icon(Icons.lock_outline_rounded, color: AppColors.primary),
-              title: const Text('ចាក់សោកម្មវិធី (App Lock)'),
-              subtitle: const Text('ការពារទិន្នន័យដោយលេខកូដ PIN', style: TextStyle(fontSize: 11)),
+              title: Text(_currentLang == 'km' ? 'ចាក់សោកម្មវិធី' : 'App Lock'),
+              subtitle: Text(
+                _currentLang == 'km' ? 'ការពារទិន្នន័យដោយលេខកូដ PIN' : 'Protect data with 4-digit PIN',
+                style: const TextStyle(fontSize: 11),
+              ),
               value: _appLockEnabled,
               onChanged: (val) async {
                 if (val) {
@@ -412,6 +472,39 @@ class _SettingsSheetState extends State<SettingsSheet> {
             if (_appLockEnabled)
               ListTile(
                 contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.timer_outlined, color: AppColors.primary),
+                title: Text(_currentLang == 'km' ? 'ចាក់សោស្វ័យប្រវត្តិ' : 'Auto-Lock Timeout'),
+                subtitle: Text(
+                  _autoLockTimeout == 0
+                      ? (_currentLang == 'km' ? 'ភ្លាមៗពេលចាកចេញ' : 'Immediately')
+                      : _autoLockTimeout == 30
+                          ? (_currentLang == 'km' ? '៣០ វិនាទី' : '30 seconds')
+                          : _autoLockTimeout == 60
+                              ? (_currentLang == 'km' ? '១ នាទី' : '1 minute')
+                              : (_currentLang == 'km' ? '៥ នាទី' : '5 minutes'),
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: DropdownButton<int>(
+                  value: _autoLockTimeout,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    DropdownMenuItem(value: 0, child: Text(_currentLang == 'km' ? 'ភ្លាមៗ' : 'Immediately')),
+                    DropdownMenuItem(value: 30, child: Text(_currentLang == 'km' ? '៣០ វិនាទី' : '30s')),
+                    DropdownMenuItem(value: 60, child: Text(_currentLang == 'km' ? '១ នាទី' : '1 min')),
+                    DropdownMenuItem(value: 300, child: Text(_currentLang == 'km' ? '៥ នាទី' : '5 min')),
+                  ],
+                  onChanged: (val) async {
+                    if (val != null) {
+                      await SecurityService.setAutoLockTimeoutSeconds(val);
+                      setState(() => _autoLockTimeout = val);
+                      widget.onSecurityChanged?.call();
+                    }
+                  },
+                ),
+              ),
+            if (_appLockEnabled)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.pin_outlined, color: AppColors.primary),
                 title: const Text('ប្តូរលេខកូដ PIN ថ្មី'),
                 subtitle: const Text('ផ្លាស់ប្តូរលេខសម្ងាត់ ៤ ខ្ទង់', style: TextStyle(fontSize: 11)),
@@ -430,9 +523,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
 
             const Divider(),
             const SizedBox(height: 8),
-            const Text(
-              'ការជូនដំណឹង (Notifications & Reminders)',
-              style: TextStyle(
+            Text(
+              _currentLang == 'km' ? 'ការជូនដំណឹង' : 'Notifications & Reminders',
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
@@ -488,8 +581,13 @@ class _SettingsSheetState extends State<SettingsSheet> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               secondary: const Icon(Icons.warning_amber_rounded, color: AppColors.primary),
-              title: const Text('ការជូនដំណឹងពីកញ្ចប់ថវិកា (Budget Alerts)'),
-              subtitle: const Text('Push Notification ពេលចំណាយជិតដល់ 80% ឬលើស 100%', style: TextStyle(fontSize: 11)),
+              title: Text(_currentLang == 'km' ? 'ការជូនដំណឹងពីកញ្ចប់ថវិកា' : 'Budget Alerts'),
+              subtitle: Text(
+                _currentLang == 'km'
+                    ? 'Push Notification ពេលចំណាយជិតដល់ 80% ឬលើស 100%'
+                    : 'Push notification when spending reaches 80% or 100%',
+                style: const TextStyle(fontSize: 11),
+              ),
               value: _budgetAlertsEnabled,
               onChanged: (val) async {
                 if (val) {
@@ -502,9 +600,9 @@ class _SettingsSheetState extends State<SettingsSheet> {
 
             const Divider(),
             const SizedBox(height: 8),
-            const Text(
-              'ទិន្នន័យ និងការបម្រុងទុក (Data & Backup)',
-              style: TextStyle(
+            Text(
+              _currentLang == 'km' ? 'ទិន្នន័យ និងការបម្រុងទុក' : 'Data & Backup',
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
@@ -517,8 +615,13 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 Icons.cloud_upload_outlined,
                 color: AppColors.primary,
               ),
-              title: const Text('បម្រុងទុកទិន្នន័យ (Cloud / Drive Backup)'),
-              subtitle: const Text('រក្សាទុកឯកសារ Backup .json ទៅ Google Drive ឬ Files', style: TextStyle(fontSize: 11)),
+              title: Text(_currentLang == 'km' ? 'បម្រុងទុកទិន្នន័យ' : 'Cloud / Drive Backup'),
+              subtitle: Text(
+                _currentLang == 'km'
+                    ? 'រក្សាទុកឯកសារ Backup .json ទៅ Google Drive ឬ Files'
+                    : 'Save backup JSON file to Google Drive or Files',
+                style: const TextStyle(fontSize: 11),
+              ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () async {
                 try {
@@ -538,8 +641,13 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 Icons.settings_backup_restore_rounded,
                 color: Colors.teal,
               ),
-              title: const Text('ស្តារទិន្នន័យឡើងវិញ (Restore Data)'),
-              subtitle: const Text('នាំចូលទិន្នន័យពីឯកសារ Backup .json', style: TextStyle(fontSize: 11)),
+              title: Text(_currentLang == 'km' ? 'ស្តារទិន្នន័យឡើងវិញ' : 'Restore Data'),
+              subtitle: Text(
+                _currentLang == 'km'
+                    ? 'នាំចូលទិន្នន័យពីឯកសារ Backup .json'
+                    : 'Import data from backup JSON file',
+                style: const TextStyle(fontSize: 11),
+              ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => _showRestoreDialog(context),
             ),
@@ -549,8 +657,13 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 Icons.file_download_outlined,
                 color: AppColors.primary,
               ),
-              title: const Text('នាំចេញរបាយការណ៍ (Export PDF / Excel / CSV)'),
-              subtitle: const Text('ទាញយករបាយការណ៍ជា PDF, Excel ឬ CSV', style: TextStyle(fontSize: 11)),
+              title: Text(_currentLang == 'km' ? 'នាំចេញរបាយការណ៍' : 'Export Reports'),
+              subtitle: Text(
+                _currentLang == 'km'
+                    ? 'ទាញយករបាយការណ៍ជា PDF, Excel ឬ CSV'
+                    : 'Download reports in PDF, Excel, or CSV',
+                style: const TextStyle(fontSize: 11),
+              ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: widget.onExport,
             ),
@@ -571,7 +684,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.info_outline_rounded, color: AppColors.primary),
-              title: Text(_currentLang == 'km' ? 'អំពីកម្មវិធី (About)' : 'About ExpensePro'),
+              title: Text(_currentLang == 'km' ? 'អំពីកម្មវិធី' : 'About ExpensePro'),
               subtitle: Text(
                 _currentLang == 'km'
                     ? 'កំណែ 1.0.0 · Develop by PICH UDOM'
@@ -588,23 +701,27 @@ class _SettingsSheetState extends State<SettingsSheet> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          width: 80,
+                          height: 80,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.accent],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(22),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.3),
-                                blurRadius: 16,
+                                color: AppColors.primary.withValues(alpha: 0.35),
+                                blurRadius: 18,
                                 offset: const Offset(0, 6),
                               ),
                             ],
                           ),
-                          child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 36),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Image.asset(
+                              'assets/icons/logo.png',
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         const Text(
@@ -705,7 +822,10 @@ class _SettingsSheetState extends State<SettingsSheet> {
     final selected = _currentCurrency == value;
     return GestureDetector(
       onTap: () {
-        setState(() => _currentCurrency = value);
+        setState(() {
+          _currentCurrency = value;
+          _updateBudgetCtrlText(value);
+        });
         widget.onSetCurrency(value);
       },
       child: AnimatedContainer(
@@ -766,7 +886,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
             children: [
               Icon(Icons.settings_backup_restore_rounded, color: Colors.teal),
               SizedBox(width: 10),
-              Text('ស្តារទិន្នន័យ (Restore)'),
+              Text('ស្តារទិន្នន័យ'),
             ],
           ),
           content: Column(
